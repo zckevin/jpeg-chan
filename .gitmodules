@@ -1,0 +1,3 @@
+[submodule "jpeg-js"]
+	path = jpeg-js
+	url = https://github.com/zckevin/jpeg-js
