@@ -1,105 +1,167 @@
-const fs = require("fs")
-const assert = require('assert').strict;
-const fetch = require("node-fetch")
+const fs = require("fs");
+const assert = require("assert").strict;
+const fetch = require("node-fetch");
+const randomBytes = require("random-bytes");
 
-const jpeg = require("./jpeg-js")
-const bits = require("./bits_manipulation")
-const utils = require("./utils")
-const uploadToWeibo = require("./upload_to_weibo")
+const jpeg = require("./jpeg-js");
+const bits = require("./bits_manipulation");
+const utils = require("./utils");
+const uploadToWeibo = require("./upload_to_weibo");
 
 // trim newline in txt
-const weiboCookies = fs.readFileSync("./weibo_cookies.txt").toString().trim()
+const weiboCookies = fs.readFileSync("./weibo_cookies.txt").toString().trim();
 
 function selectTemplateImageBySize(dataSize) {
-    let root = "./image_templates"
-    if (dataSize <= 64) {
-        return `${root}/8.jpg`
-    } else if (dataSize < 640) {
-        return `${root}/32px.jpg`
-    } else if (dataSize < 1440) {
-        return `${root}/48px.jpg`
-    } else if (dataSize < 2560) {
-        return `${root}/64px.jpg`
-    } else if (dataSize < 256000) {
-        return `${root}/640px.jpg`
-    } else {
-    }
-}
-
-function parseOverlayData(imageBuf, dataLength, nbits) {
-    let components = jpeg.getImageComponents(imageBuf)
-    assert.strictEqual(components.length, 1)
-    
-    let recved = [];
-    (function() {
-        let counter = 0;
-        components[0].lines.map(line => {
-            line.map(b => {
-                if (counter++ >= dataLength + 10) {
-                    return
-                }
-                recved.push(b)
-            })
-        })
-    })()
-    let nextByteFn = bits.getFromBuffer(Buffer.from(recved), nbits, dataLength)
-    recved = utils.getUntilNull(nextByteFn).slice(0, dataLength)
-    return recved
+  let root = "./image_templates";
+  return `${root}/640.jpg`;
+  if (dataSize <= 64) {
+    return `${root}/8.jpg`;
+  } else if (dataSize < 640) {
+    return `${root}/32.jpg`;
+  } else if (dataSize < 1440) {
+    return `${root}/48.jpg`;
+  } else if (dataSize < 2560) {
+    return `${root}/64.jpg`;
+  } else if (dataSize < 256000) {
+    return `${root}/640.jpg`;
+  } else {
+  }
 }
 
 class WeiboPicChannel {
-    constructor(nbits, mask) {
-        this.nbits = 5
-        this.mask = 0x03
-    }
+  constructor(usedBitsN) {
+    this.usedBitsN = usedBitsN;
+    this.unusedBitsN = 8 - usedBitsN;
 
-    write(buf) {
-        let that = this;
-        return new Promise(function(resolve, reject) {
-            if (buf.length <= 0) {
-                return resolve(null)
-            }
-            let nextByteFn = bits.drainFromBuffer(buf, that.nbits, that.mask)
-            let dataLength = Math.ceil(buf.length * 8 / that.nbits)
-            let imageData = jpeg.writeDataToImage(
-                // fs.readFileSync("./640px.template.jpg"),
-                fs.readFileSync(selectTemplateImageBySize(dataLength)),
-                nextByteFn,
-            )
-            let jpegImage  = jpeg.encode(imageData, 100);
-            uploadToWeibo(jpegImage.data, weiboCookies, (err, picId) => {
-                if (err) {
-                    return reject(err)
-                }
-                let u = `https://wx3.sinaimg.cn/large/${picId}.jpg`;
-                resolve(u)
-            })
-        })
-    }
+    // mask try to make byte value suffer from JPEG DCT
+    // so we make it half to the *unused* bits value, e.g.
+    // | 1 0 0 1 x x x x |, usedBits = 4
+    // | 0 0 0 0 0 1 1 1 | <- mask value := (1<<3)-1
+    // | 1 0 0 1 0 1 1 1 |, final byte
+    this.mask = (1 << (this.unusedBitsN - 1)) - 1;
+  }
 
-    read(picUrl, dataLength) {
-        let that = this;
-        return new Promise(function(resolve, reject) {
-            fetch(picUrl)
-                .then(res => res.buffer())
-                .then(buf => {
-                    let data = parseOverlayData(buf, dataLength, that.nbits)
-                    resolve(data)
-                })
-        })
+  _encode(buf) {
+    if (buf.length <= 0) {
+      return null;
     }
+    const nextByteFn = bits.serializeFromBuffer(
+      buf,
+      this.unusedBitsN,
+      this.mask
+    );
+    const dataLength = Math.ceil((buf.length * 8) / this.usedBitsN);
+    const templateImageFilePath = selectTemplateImageBySize(dataLength);
+    const rawImageData = jpeg.writeDataToRawImage(
+      templateImageFilePath,
+      fs.readFileSync(templateImageFilePath),
+      nextByteFn
+    );
+    console.time("jpeg encode");
+    const jpegImageObject = jpeg.encode(
+      rawImageData,
+      100 /* highest encode quality */
+    );
+    console.timeEnd("jpeg encode");
+    return jpegImageObject.data;
+  }
+
+  write(buf) {
+    const encoded = this._encode(buf);
+    return new Promise(function (resolve, reject) {
+      if (!encoded) {
+        resolve("");
+      }
+      uploadToWeibo(encoded, weiboCookies, (err, picId) => {
+        if (err) {
+          return reject(err);
+        }
+        // use HTTP instead of HTTPS
+        resolve(`http://wx3.sinaimg.cn/original/${picId}.jpg`);
+      });
+    });
+  }
+
+  _parse(imageBuf, dataLength, usedbitsN) {
+    const components = jpeg.getImageComponents(imageBuf);
+    assert.strictEqual(components.length, 1);
+
+    let recved = [];
+    // let counter = 0;
+    components[0].lines.map((line) => {
+      line.map((byte) => {
+        // ???
+        // if (counter++ >= dataLength + 10) {
+        //   return;
+        // }
+        recved.push(byte);
+      });
+    });
+
+    const nextByteFn = bits.parseFromBuffer(
+      Buffer.from(recved),
+      usedbitsN,
+      dataLength
+    );
+    recved = utils.drainN(nextByteFn, dataLength);
+    if (recved.length < dataLength) {
+      throw new Error("Short read.");
+    }
+    return recved;
+  }
+
+  read(picUrl, dataLength) {
+    const that = this;
+    return new Promise(function (resolve, reject) {
+      fetch(picUrl)
+        .then((res) => res.buffer())
+        .then((buf) => {
+          const data = that._parse(buf, dataLength, that.usedBitsN);
+          resolve(data);
+        })
+        .catch((err) => {
+          reject(err);
+        });
+    });
+  }
+
+  dryRun(buf) {
+    console.time("dryRun _encode");
+    const encoded = this._encode(buf);
+    console.timeEnd("dryRun _encode");
+
+    console.time("dryRun _parse");
+    const decoded = this._parse(encoded, buf.length, this.usedBitsN);
+    console.timeEnd("dryRun _parse");
+    assert.deepEqual(new Uint8Array(decoded), new Uint8Array(buf));
+  }
 }
 
-(async function() {
-    let ch = new WeiboPicChannel()
-    let buf = Buffer.from([1, 28, 143, 76, 98, 211])
-    let start = new Date()
+async function run(srcBuf) {
+  const imageCh = new WeiboPicChannel(4);
+  // const buf = fs.readFileSync("/home/zc/PROJECTS/weibo-jpeg-channel/node_modules/node-fetch/README.md")
 
-    let u = await ch.write(buf)
-    console.log(u)
-    let data = await ch.read(u, buf.length)
-    utils.debugPrint(buf, utils.convert.dec2hex)
-    utils.debugPrint(data, utils.convert.dec2hex)
-    console.log(new Date() - start, "ms")
-})()
+  imageCh.dryRun(srcBuf);
 
+  /*
+  console.time("real run");
+  {
+    const imageUrl = await imageCh.write(srcBuf);
+    console.log(imageUrl);
+
+    const dstBuf = await imageCh.read(imageUrl, srcBuf.length);
+    // utils.debugPrint(srcBuf, utils.convert.dec2hex);
+    // utils.debugPrint(dstBuf, utils.convert.dec2hex);
+    assert.deepEqual(new Uint8Array(dstBuf), new Uint8Array(srcBuf));
+  }
+  console.timeEnd("real run");
+  */
+}
+
+globalThis.perf = function perf() {
+  randomBytes(30).then((buf) => run(buf));
+};
+
+for (let i = 0; i < 100; i++) {
+  perf();
+}

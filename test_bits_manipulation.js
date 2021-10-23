@@ -15,7 +15,7 @@ function binStringToBuf(s) {
     return Buffer.from(arr)
 }
 
-function drainFromBuffer(buf, n, mask) {
+function serializeFromBuffer(buf, n, mask) {
     let s = concatBufToString(buf)
     let smask = utils.convert.hex2bin(mask, 8-n)
     return () => {
@@ -33,7 +33,7 @@ function drainFromBuffer(buf, n, mask) {
     }
 }
 
-function getFromBuffer(buf, n, totalBytes) {
+function parseFromBuffer(buf, n, totalBytes) {
     let s = concatBufToString(buf)
     let counter = 0
 
@@ -70,10 +70,10 @@ function test_drainAndGet(INTERATE_TIMES) {
         let N_BITS = utils.getRandomInt(7) + 1
         console.log(N, N_BITS)
 
-        let next = drainFromBuffer(buf, N_BITS, 0)
+        let next = serializeFromBuffer(buf, N_BITS, 0)
         let sentBytes = utils.getUntilNull(next)
 
-        let next2 = getFromBuffer(Buffer.from(sentBytes), N_BITS, N)
+        let next2 = parseFromBuffer(Buffer.from(sentBytes), N_BITS, N)
         let recvedBytes = utils.getUntilNull(next2)
 
         // debugPrint(buf)
@@ -90,10 +90,10 @@ function test_bitsImplementation(INTERATE_TIMES) {
         let N_BITS = utils.getRandomInt(7) + 1
         console.log(N, N_BITS)
 
-        let next = drainFromBuffer(buf, N_BITS, 0)
+        let next = serializeFromBuffer(buf, N_BITS, 0)
         let sentBytes = utils.getUntilNull(next)
 
-        let next2 = bits.getFromBuffer(Buffer.from(sentBytes), N_BITS, N)
+        let next2 = bits.parseFromBuffer(Buffer.from(sentBytes), N_BITS, N)
         let recvedBytes = utils.getUntilNull(next2)
 
         // debugPrint(buf)
@@ -110,10 +110,10 @@ function test_bitsImplementation_reverse(INTERATE_TIMES) {
         let N_BITS = utils.getRandomInt(7) + 1
         console.log(N, N_BITS)
 
-        let next = bits.drainFromBuffer(buf, N_BITS, 0)
+        let next = bits.serializeFromBuffer(buf, N_BITS, 0)
         let sentBytes = utils.getUntilNull(next)
 
-        let next2 = getFromBuffer(Buffer.from(sentBytes), N_BITS, N)
+        let next2 = parseFromBuffer(Buffer.from(sentBytes), N_BITS, N)
         let recvedBytes = utils.getUntilNull(next2)
 
         // debugPrint(buf)
