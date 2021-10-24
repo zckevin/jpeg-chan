@@ -28,7 +28,8 @@ function selectTemplateImageBySize(dataSize) {
   }
 }
 
-class WeiboPicChannel {
+class WeiboJpegChannel {
+  // @usedBitsN: Integer, how many significant side bits are used as data in a byte(8 bits)
   constructor(usedBitsN) {
     this.usedBitsN = usedBitsN;
     this.unusedBitsN = 8 - usedBitsN;
@@ -138,7 +139,7 @@ class WeiboPicChannel {
 }
 
 async function run(srcBuf) {
-  const imageCh = new WeiboPicChannel(4);
+  const imageCh = new WeiboJpegChannel(4);
   // const buf = fs.readFileSync("/home/zc/PROJECTS/weibo-jpeg-channel/node_modules/node-fetch/README.md")
 
   imageCh.dryRun(srcBuf);
