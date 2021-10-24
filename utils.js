@@ -29,10 +29,6 @@ function drainN(nextByteFn, n) {
     if (byte == null) break;
     result.push(byte);
     counter += 1;
-    if (counter > 10000) {
-      console.trace();
-      assert.strictEqual(false, true, "getUntilNull: found dead loop.");
-    }
   }
   return result;
 }

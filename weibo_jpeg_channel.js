@@ -139,21 +139,27 @@ async function run(srcBuf) {
   const imageCh = new WeiboJpegChannel(4);
   // const buf = fs.readFileSync("/home/zc/PROJECTS/weibo-jpeg-channel/node_modules/node-fetch/README.md")
 
-  imageCh.dryRun(srcBuf);
+  // imageCh.dryRun(srcBuf);
 
-  console.time("real run");
-  {
-    const imageUrl = await imageCh.write(srcBuf);
-    console.log(imageUrl);
+  console.time("JPEG rtt");
+  console.time("JPEG upload");
+  const imageUrl = await imageCh.write(srcBuf);
+  console.timeEnd("JPEG upload");
 
-    const dstBuf = await imageCh.read(imageUrl, srcBuf.length);
-    // utils.debugPrint(srcBuf, utils.convert.dec2hex);
-    // utils.debugPrint(dstBuf, utils.convert.dec2hex);
-    assert.deepEqual(new Uint8Array(dstBuf), new Uint8Array(srcBuf));
-  }
-  console.timeEnd("real run");
+  console.time("JPEG download");
+  const dstBuf = await imageCh.read(imageUrl, srcBuf.length);
+  console.timeEnd("JPEG download");
+  console.timeEnd("JPEG rtt");
+
+  // utils.debugPrint(srcBuf, utils.convert.dec2hex);
+  // utils.debugPrint(dstBuf, utils.convert.dec2hex);
+  assert.deepEqual(new Uint8Array(dstBuf), new Uint8Array(srcBuf));
 }
 
+const n = parseInt(process.argv[2]) || 1024;
+randomBytes(n).then((buf) => run(buf));
+
+/*
 globalThis.perf = function perf() {
   randomBytes(30).then((buf) => run(buf));
 };
@@ -161,3 +167,4 @@ globalThis.perf = function perf() {
 for (let i = 0; i < 1; i++) {
   perf();
 }
+*/
