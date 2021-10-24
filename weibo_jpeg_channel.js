@@ -6,10 +6,8 @@ const randomBytes = require("random-bytes");
 const jpeg = require("./jpeg-js");
 const bits = require("./bits_manipulation");
 const utils = require("./utils");
-const uploadToWeibo = require("./upload_to_weibo");
-
-// trim newline in txt
-const weiboCookies = fs.readFileSync("./weibo_cookies.txt").toString().trim();
+const { uploadToWeibo, getWeiboPicUrl } = require("./upload_to_weibo");
+const weiboCookies = require("./cookies");
 
 function selectTemplateImageBySize(dataSize) {
   let root = "./image_templates";
@@ -77,8 +75,7 @@ class WeiboJpegChannel {
         if (err) {
           return reject(err);
         }
-        // use HTTP instead of HTTPS
-        resolve(`http://wx3.sinaimg.cn/original/${picId}.jpg`);
+        resolve(getWeiboPicUrl(picId));
       });
     });
   }
@@ -144,7 +141,6 @@ async function run(srcBuf) {
 
   imageCh.dryRun(srcBuf);
 
-  /*
   console.time("real run");
   {
     const imageUrl = await imageCh.write(srcBuf);
@@ -156,13 +152,12 @@ async function run(srcBuf) {
     assert.deepEqual(new Uint8Array(dstBuf), new Uint8Array(srcBuf));
   }
   console.timeEnd("real run");
-  */
 }
 
 globalThis.perf = function perf() {
   randomBytes(30).then((buf) => run(buf));
 };
 
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 1; i++) {
   perf();
 }
