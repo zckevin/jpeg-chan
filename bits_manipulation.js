@@ -79,21 +79,21 @@ function serializeFromBuffer(buf, unusedBitsN, mask) {
         continue;
       }
       assert.ok(lastRoundByte.empty);
-      if (buf.length == 0) {
+      if (buf.length > 0) {
+        let nextBufferByte = new Byte(buf[0], 8);
+        buf = buf.slice(1);
+        result = Byte.concat(
+          result,
+          nextBufferByte.drain(needBitsN - result.length)
+        );
+        lastRoundByte = nextBufferByte;
+      } else {
         if (result.length > 0) {
           return result.normalize(mask);
         } else {
-          // console.log("met buffer end.")
           return null;
         }
       }
-      let nextBufferByte = new Byte(buf[0], 8);
-      buf = buf.slice(1);
-      result = Byte.concat(
-        result,
-        nextBufferByte.drain(needBitsN - result.length)
-      );
-      lastRoundByte = nextBufferByte;
     }
   };
 }
@@ -104,28 +104,35 @@ function parseFromBuffer(buf, usedBitsN, totalBytes) {
   return function next() {
     let result = new Byte(0, 0);
     while (true) {
+      // always drained enough demanded bytes from buffer, finish
+      if (counter >= totalBytes) {
+        return null;
+      }
+      // already drained all 8 bits of a byte, return it
       if (result.length == 8) {
         counter += 1;
         return result.byte;
       }
+      // concat bits from last round byte
       if (!lastRoundByte.empty) {
         result = Byte.concat(result, lastRoundByte.drain(8 - result.length));
         continue;
       }
       assert.ok(lastRoundByte.empty);
-      if (buf.length == 0) {
+      // if buffer is not empty, drain next byte from buffer
+      if (buf.length > 0) {
+        let nextBufferByte = new Byte(buf[0], 8).drain(usedBitsN);
+        buf = buf.slice(1);
+        result = Byte.concat(result, nextBufferByte.drain(8 - result.length));
+        lastRoundByte = nextBufferByte;
+      } else {
         if (result.length > 0 && counter < totalBytes) {
           counter += 1;
           return result.normalize();
         } else {
-          // console.log("met buffer end.")
           return null;
         }
       }
-      let nextBufferByte = new Byte(buf[0], 8).drain(usedBitsN);
-      buf = buf.slice(1);
-      result = Byte.concat(result, nextBufferByte.drain(8 - result.length));
-      lastRoundByte = nextBufferByte;
     }
   };
 }
