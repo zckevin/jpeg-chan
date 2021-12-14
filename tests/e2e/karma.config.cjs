@@ -55,12 +55,13 @@ module.exports = function (config) {
     // list of files / patterns to load in the browser
     files: [
       "../../src/jpeg-js/lib/decoder.js",
+      "../../src/jpeg-js/lib/encoder.js",
       "../../src/jpeg-js/index.js",
+      "../../src/weibo_jpeg_channel.js",
       "../../src/weibo-jpeg-decoder/**/*.js",
       "../../src/assert.js",
-      "../../src/bits_manipulation.js",
       "../../src/utils.js",
-      "../../src/weibo_jpeg_channel.js",
+      "../../src/bits_manipulation.js",
 
       "./**/*.test.js",
 
@@ -78,12 +79,13 @@ module.exports = function (config) {
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
       "../../src/jpeg-js/lib/decoder.js": ["webpack"],
+      "../../src/jpeg-js/lib/encoder.js": ["webpack"],
       "../../src/jpeg-js/index.js": ["webpack"],
+      "../../src/weibo_jpeg_channel.js": ["webpack"],
       "../../src/weibo-jpeg-decoder/**/*.js": ["webpack"],
       "../../src/assert.js": ["webpack"],
-      "../../src/bits_manipulation.js": ["webpack"],
       "../../src/utils.js": ["webpack"],
-      "../../src/weibo_jpeg_channel.js": ["webpack"],
+      "../../src/bits_manipulation.js": ["webpack"],
 
       "./**/*.js": ["webpack"],
     },

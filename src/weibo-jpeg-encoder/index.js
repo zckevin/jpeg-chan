@@ -1,6 +1,6 @@
 import * as fs from "fs"
 
-import { assert } from "../assert";
+import { assert } from "../assert.js";
 import { WeiboJpegChannel } from "../weibo_jpeg_channel.js";
 import * as bits from "../bits_manipulation.js";
 import jpegjs from "../jpeg-js/index.js";

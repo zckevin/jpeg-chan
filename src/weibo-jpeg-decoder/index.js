@@ -2,24 +2,41 @@ import * as bits from "../bits_manipulation.js";
 import * as utils from "../utils.js";
 import { WeiboJpegChannel } from "../weibo_jpeg_channel.js";
 
-import { isBrowser, isNode} from "browser-or-node";
+import { isBrowser } from "browser-or-node";
 
 // import lazily/on-demand using webpack
-async function selectDecoderByEnv() {
-  let m;
-  if (isBrowser) {
-    m = await import(/* webpackPrefetch: true */"./browser-decoder.js");
-  } else if (isNode) {
-    m = await import("./jpegjs-decoder.js");
-  } else {
-    throw new Error("only support browser & node.js env");
+async function importDecoderByEnv(decoderType) {
+  switch (decoderType) {
+    case WeiboJpegDecoder.browserDecoder:
+      return await import(/* webpackPrefetch: true */"./browser-decoder.js");
+    case WeiboJpegDecoder.jpegjsDecoder:
+      return await import("./jpegjs-decoder.js");
+    case WeiboJpegDecoder.wasmDecoder:
+      return await import("./wasm-decoder.js");
+    default:
+      throw new Error(`Unknown decoder: ${decoderType}`);
   }
-  return m.getJpegChromaComponent;
 }
 
 export default class WeiboJpegDecoder extends WeiboJpegChannel {
-  constructor(usedBitsN) {
+  static browserDecoder = Symbol("browserDecoder");
+  static jpegjsDecoder = Symbol("jpegjsDecoder");
+  static wasmDecoder = Symbol("wasmDecoder");
+
+  /**
+   * @param {Number} usedBitsN 
+   * @param {Symbol} decoderType 
+   */
+  constructor(usedBitsN, decoderType) {
     super(usedBitsN);
+
+    if (decoderType) {
+      this.decoderType = decoderType;
+    } else {
+      this.decoderType = isBrowser ? 
+        WeiboJpegDecoder.browserDecoder : WeiboJpegDecoder.jpegjsDecoder;
+    }
+    console.log("User decoder:", this.decoderType);
   }
 
   /**
@@ -28,9 +45,13 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
    * @returns {Promise<ArrayBuffer>}
    */
   async Read(ab, n) {
-    const getJpegChromaComponent = await selectDecoderByEnv();
-    const chromaComponent = await getJpegChromaComponent(ab);
+    const m = await importDecoderByEnv(this.decoderType);
+    const chromaComponent = await m.getJpegChromaComponent(ab);
     const iter = bits.parseFrom(chromaComponent, this.usedBitsN, n);
-    return utils.drainNBytes(iter, n).buffer;
+    performance.mark("drain");
+    const result = utils.drainNBytes(iter, n).buffer;
+    const entry = performance.measure("drain", "drain");
+    console.log("drain", entry.duration);
+    return result;
   }
 }

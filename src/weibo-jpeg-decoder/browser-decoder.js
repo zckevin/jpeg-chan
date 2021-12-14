@@ -27,7 +27,7 @@ async function decodeJpegInBrowser(ab) {
     performance.mark(perfMarkerJpegDecode);
   };
   await img.decode();
-  performance.measure("jpeg decode", perfMarkerJpegDecode);
+  performance.measure("browserDecoder:jpeg decode", perfMarkerJpegDecode);
 
   performance.mark(perfMarkerJpegCanvas);
   const {width, height} = img;
@@ -40,6 +40,7 @@ async function decodeJpegInBrowser(ab) {
   }
   ctx.drawImage(img, 0, 0);
   const imageData = ctx.getImageData(0, 0, width, height);
+  performance.measure("browserDecoder:jpeg canvas", perfMarkerJpegCanvas);
   return imageData.data;
 }
 

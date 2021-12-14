@@ -6,6 +6,14 @@ export function randomString(n = 8) {
   return Array(n).fill().map(_ => String.fromCharCode(33 + Math.random() * (127 - 33))).join('');
 }
 
+export function randomBytesArray(n) {
+  let arr = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    arr[i] = getRandomInt(256);
+  }
+  return arr;
+}
+
 export function getUntilNull(next) {
   let arr = [];
   let counter = 0;
