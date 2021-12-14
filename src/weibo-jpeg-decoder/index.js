@@ -48,10 +48,6 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
     const m = await importDecoderByEnv(this.decoderType);
     const chromaComponent = await m.getJpegChromaComponent(ab);
     const iter = bits.parseFrom(chromaComponent, this.usedBitsN, n);
-    performance.mark("drain");
-    const result = utils.drainNBytes(iter, n).buffer;
-    const entry = performance.measure("drain", "drain");
-    console.log("drain", entry.duration);
-    return result;
+    return utils.drainNBytes(iter, n).buffer;
   }
 }

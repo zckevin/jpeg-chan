@@ -22,7 +22,7 @@ class Byte {
     return this.leftn <= 0;
   }
 
-  // drain from most significant bit to least most significant bit
+  // drain from most significant bit to least significant bit
   //
   // | 1 1 0 0 0 1 0 1 |, leftn = 8
   //           -> drain(3)
@@ -71,6 +71,7 @@ class Byte {
 export function serializeTo(arr, unusedBitsN, mask) {
   assert(unusedBitsN > 0 && unusedBitsN <= 8, "Invalid unusedBitsN.");
   let lastRoundByte = new Byte(0, 0);
+  let arrayIndex = 0;
   return function next() {
     let result = new Byte(0, 0);
     while (true) {
@@ -85,9 +86,8 @@ export function serializeTo(arr, unusedBitsN, mask) {
         );
         continue;
       }
-      if (arr.length > 0) {
-        let nextBufferByte = new Byte(arr[0], 8);
-        arr = arr.slice(1);
+      if (arrayIndex < arr.length) {
+        let nextBufferByte = new Byte(arr[arrayIndex++], 8);
         result = Byte.concat(
           result,
           nextBufferByte.drain(needBitsN - result.length)
@@ -114,6 +114,7 @@ export function parseFrom(arr, usedBitsN, totalBytes) {
   assert(usedBitsN > 0 && usedBitsN <= 8, "Invalid usedBitsN.");
   let lastRoundByte = new Byte(0, 0);
   let counter = 0;
+  let arrayIndex = 0;
 
   function next() {
     let result = new Byte(0, 0);
@@ -132,10 +133,9 @@ export function parseFrom(arr, usedBitsN, totalBytes) {
         result = Byte.concat(result, lastRoundByte.drain(8 - result.length));
         continue;
       }
-      // if buffer is not empty, drain next byte from buffer
-      if (arr.length > 0) {
-        let nextBufferByte = new Byte(arr[0], 8).drain(usedBitsN);
-        arr = arr.slice(1);
+      // if has more bytes to drain
+      if (arrayIndex < arr.length) {
+        let nextBufferByte = new Byte(arr[arrayIndex++], 8).drain(usedBitsN);
         result = Byte.concat(result, nextBufferByte.drain(8 - result.length));
         lastRoundByte = nextBufferByte;
       } else {

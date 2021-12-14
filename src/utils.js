@@ -56,10 +56,7 @@ export function drainNBytes(iter, n) {
   let counter = 0;
 
   let item = iter.next();
-  while (!item.done) {
-    if (counter >= n) {
-      break;
-    }
+  while (!item.done && counter < n) {
     result[counter++] = item.value;
     item = iter.next();
   }

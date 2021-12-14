@@ -68,6 +68,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
 
     const buf = targetImage.data;
     // Node.js Buffer to ArrayBuffer
-    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    // return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+    return buf;
   }
 }
