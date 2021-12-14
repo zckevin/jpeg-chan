@@ -10,7 +10,7 @@ function forceNewFrameInChrome() {
   document.body.append(el);
 }
 
-async function decodeJpegInBrowser(ab, width, height) {
+async function decodeJpegInBrowser(ab) {
   const perfMarkerJpegDecode = utils.randomString();
   const perfMarkerJpegCanvas = utils.randomString();
 
@@ -30,6 +30,7 @@ async function decodeJpegInBrowser(ab, width, height) {
   performance.measure("jpeg decode", perfMarkerJpegDecode);
 
   performance.mark(perfMarkerJpegCanvas);
+  const {width, height} = img;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

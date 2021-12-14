@@ -6,6 +6,6 @@ import { assertNotReached } from "../assert.js"
  * @param {number} height
  * @returns {Promise}
  */
-export async function getJpegChromaComponent(ab, width, height) {
+export async function getJpegChromaComponent(ab) {
   assertNotReached("not implemented");
 }

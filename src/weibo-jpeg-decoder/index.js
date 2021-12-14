@@ -4,6 +4,7 @@ import { WeiboJpegChannel } from "../weibo_jpeg_channel.js";
 
 import { isBrowser, isNode} from "browser-or-node";
 
+// import lazily/on-demand using webpack
 async function selectDecoderByEnv() {
   let m;
   if (isBrowser) {
@@ -17,9 +18,8 @@ async function selectDecoderByEnv() {
 }
 
 export default class WeiboJpegDecoder extends WeiboJpegChannel {
-  constructor(usedBitsN, width) {
+  constructor(usedBitsN) {
     super(usedBitsN);
-    this.width = width;
   }
 
   /**
@@ -29,9 +29,7 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
    */
   async Read(ab, n) {
     const getJpegChromaComponent = await selectDecoderByEnv();
-
-    const width = this.width;
-    const chromaComponent = await getJpegChromaComponent(ab, width, width);
+    const chromaComponent = await getJpegChromaComponent(ab);
     const iter = bits.parseFrom(chromaComponent, this.usedBitsN, n);
     return utils.drainNBytes(iter, n).buffer;
   }

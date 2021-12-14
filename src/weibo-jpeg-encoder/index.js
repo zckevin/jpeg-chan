@@ -6,9 +6,42 @@ import * as bits from "../bits_manipulation.js";
 import jpegjs from "../jpeg-js/index.js";
 
 export default class WeiboJpegEncoder extends WeiboJpegChannel {
-  constructor(usedBitsN, width) {
+  constructor(usedBitsN) {
     super(usedBitsN);
-    this.width = width;
+  }
+
+  /**
+   * @param {Number} byteLength 
+   * @returns {Number}
+   */
+  cacluateSquareImageWidth(byteLength) {
+    assert(byteLength > 0, "byteLength should be greater than 0");
+    return Math.ceil(Math.sqrt(byteLength));
+  }
+
+  generateTargetImageData(ab, nextByteFn) {
+    const width = this.cacluateSquareImageWidth(
+      Math.ceil((ab.byteLength * 8) / this.usedBitsN)
+    );
+    console.log("target image width: ", width);
+    const channels = 4; // rgba
+    const targetImageData = new Uint8ClampedArray(width * width * channels);
+
+    let nextByte = nextByteFn();
+    let counter = 0;
+    while (nextByte !== null) {
+      targetImageData[counter++] = nextByte;
+      targetImageData[counter++] = nextByte;
+      targetImageData[counter++] = nextByte;
+      targetImageData[counter++] = 255;
+      nextByte = nextByteFn();
+    }
+
+    return {
+      width: width,
+      height: width,
+      data: targetImageData
+    }
   }
 
   /**
@@ -22,15 +55,15 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
       this.unusedBitsN,
       this.mask
     );
-    const targetImageByteLength = Math.ceil(
-      (ab.byteLength * 8) / this.usedBitsN
-    );
-    const templateImageFilePath = "./image_templates/8.jpg";
-    const imageBuf = fs.readFileSync(templateImageFilePath);
-    const targetImageData = jpegjs.writeDataToRawImage(
-      templateImageFilePath, imageBuf, nextByteFn
-    );
-    const imageQuality = 100;
+
+    // const templateImageFilePath = "./image_templates/8.jpg";
+    // const imageBuf = fs.readFileSync(templateImageFilePath);
+    // const targetImageData = jpegjs.writeDataToRawImage(
+    //   templateImageFilePath, imageBuf, nextByteFn
+    // );
+
+    const targetImageData = this.generateTargetImageData(ab, nextByteFn);
+    const imageQuality = 100; // highest quality
     const targetImage = jpegjs.encode(targetImageData, imageQuality);
 
     const buf = targetImage.data;

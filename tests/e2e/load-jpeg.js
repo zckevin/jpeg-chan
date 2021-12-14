@@ -1,5 +1,5 @@
 // load jpeg using webpack file-loader
-import imageFileUrl from "../../image_templates/8.jpg"
+import imageFileUrl from "../../image_templates/640.jpg"
 
 export default function loadJpegForTesting() {
   const url = imageFileUrl;
