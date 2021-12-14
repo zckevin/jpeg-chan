@@ -1,3 +1,5 @@
+"use strict"
+
 const fs = require("fs");
 const assert = require("assert").strict;
 const fetch = require("node-fetch");
@@ -44,7 +46,7 @@ class WeiboJpegChannel {
     if (buf.length <= 0) {
       return null;
     }
-    const nextByteFn = bits.serializeFromBuffer(
+    const nextByteFn = bits.serializeTo(
       buf,
       this.unusedBitsN,
       this.mask
@@ -80,9 +82,11 @@ class WeiboJpegChannel {
     });
   }
 
-  _parse(imageBuf, dataLength, usedbitsN) {
+  _parse(imageBuf, dataLength, usedBitsN) {
+    console.time("jpeg decode");
     const components = jpeg.getImageComponents(imageBuf);
     assert.strictEqual(components.length, 1);
+    console.timeEnd("jpeg decode");
 
     let recved = [];
     // let counter = 0;
@@ -96,9 +100,9 @@ class WeiboJpegChannel {
       });
     });
 
-    const nextByteFn = bits.parseFromBuffer(
+    const nextByteFn = bits.parseFrom(
       Buffer.from(recved),
-      usedbitsN,
+      usedBitsN,
       dataLength
     );
     recved = utils.drainN(nextByteFn, dataLength);
@@ -128,9 +132,7 @@ class WeiboJpegChannel {
     const encoded = this._encode(buf);
     console.timeEnd("dryRun _encode");
 
-    console.time("dryRun _parse");
     const decoded = this._parse(encoded, buf.length, this.usedBitsN);
-    console.timeEnd("dryRun _parse");
     assert.deepEqual(new Uint8Array(decoded), new Uint8Array(buf));
   }
 }
@@ -139,7 +141,8 @@ async function run(srcBuf) {
   const imageCh = new WeiboJpegChannel(4);
   // const buf = fs.readFileSync("/home/zc/PROJECTS/weibo-jpeg-channel/node_modules/node-fetch/README.md")
 
-  // imageCh.dryRun(srcBuf);
+  imageCh.dryRun(srcBuf);
+  return;
 
   console.time("JPEG rtt");
   console.time("JPEG upload");

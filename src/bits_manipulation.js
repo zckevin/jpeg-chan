@@ -1,8 +1,10 @@
-const assert = require("assert").strict;
+"use strict"
+
+import { assert } from "./assert.js";
 
 class Byte {
   constructor(b, n) {
-    assert.ok(
+    assert(
       b >= 0 && b < 256 && n >= 0 && n <= 8,
       `Invalid Byte() constructor arguments: (${b}, ${n})`
     );
@@ -43,13 +45,14 @@ class Byte {
 
   // turn this into a standard/normalized byte, which means leftn == 8
   normalize(mask = 0) {
+    assert(this.leftn <= 8, "Byte normalize() error: leftn > 8.");
     const result = (this.byte << (8 - this.leftn)) | mask;
-    this.leftn = 8;
-    return result;
+    // this.leftn = 8;
+    return result & 255;
   }
 
   static concat(head, tail) {
-    assert.ok(
+    assert(
       head.length + tail.length <= 8,
       "Byte Concat() error: head.length + tail.length > 8."
     );
@@ -59,10 +62,14 @@ class Byte {
   }
 }
 
-// @buf: Buffer, source data
-// @unusedBitsN: Interger, N least significant bits in the iterated byte are unused
-// @mask: byte, mask to the N lsb bits
-function serializeFromBuffer(buf, unusedBitsN, mask) {
+/**
+ * @param {Uint8Array} arr source data
+ * @param {Number} unusedBitsN N least significant bits in the iterated byte are unused
+ * @param {Number} mask mask to the N lsb bits
+ * @returns {Function}
+ */
+export function serializeTo(arr, unusedBitsN, mask) {
+  assert(unusedBitsN > 0 && unusedBitsN <= 8, "Invalid unusedBitsN.");
   let lastRoundByte = new Byte(0, 0);
   return function next() {
     let result = new Byte(0, 0);
@@ -78,10 +85,9 @@ function serializeFromBuffer(buf, unusedBitsN, mask) {
         );
         continue;
       }
-      assert.ok(lastRoundByte.empty);
-      if (buf.length > 0) {
-        let nextBufferByte = new Byte(buf[0], 8);
-        buf = buf.slice(1);
+      if (arr.length > 0) {
+        let nextBufferByte = new Byte(arr[0], 8);
+        arr = arr.slice(1);
         result = Byte.concat(
           result,
           nextBufferByte.drain(needBitsN - result.length)
@@ -98,46 +104,51 @@ function serializeFromBuffer(buf, unusedBitsN, mask) {
   };
 }
 
-function parseFromBuffer(buf, usedBitsN, totalBytes) {
+/**
+ * @param {Uint8ClampedArray} arr
+ * @param {Number} usedBitsN
+ * @param {Number} totalBytes
+ * @returns {Iterable}
+ */
+export function parseFrom(arr, usedBitsN, totalBytes) {
+  assert(usedBitsN > 0 && usedBitsN <= 8, "Invalid usedBitsN.");
   let lastRoundByte = new Byte(0, 0);
   let counter = 0;
-  return function next() {
+
+  function next() {
     let result = new Byte(0, 0);
     while (true) {
       // always drained enough demanded bytes from buffer, finish
       if (counter >= totalBytes) {
-        return null;
+        return {done: true, value: 0};
       }
       // already drained all 8 bits of a byte, return it
       if (result.length == 8) {
         counter += 1;
-        return result.byte;
+        return {done: false, value: result.normalize()};
       }
       // concat bits from last round byte
       if (!lastRoundByte.empty) {
         result = Byte.concat(result, lastRoundByte.drain(8 - result.length));
         continue;
       }
-      assert.ok(lastRoundByte.empty);
       // if buffer is not empty, drain next byte from buffer
-      if (buf.length > 0) {
-        let nextBufferByte = new Byte(buf[0], 8).drain(usedBitsN);
-        buf = buf.slice(1);
+      if (arr.length > 0) {
+        let nextBufferByte = new Byte(arr[0], 8).drain(usedBitsN);
+        arr = arr.slice(1);
         result = Byte.concat(result, nextBufferByte.drain(8 - result.length));
         lastRoundByte = nextBufferByte;
       } else {
         if (result.length > 0 && counter < totalBytes) {
           counter += 1;
-          return result.normalize();
+          return {done: false, value: result.normalize()};
         } else {
-          return null;
+          return {done: true, value: 0};
         }
       }
     }
   };
-}
 
-module.exports = {
-  serializeFromBuffer,
-  parseFromBuffer,
-};
+  const iter = { next };
+  return iter;
+}

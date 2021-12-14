@@ -1,8 +1,12 @@
-function getRandomInt(max) {
+export function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
 
-function getUntilNull(next) {
+export function randomString(n = 8) {
+  return Array(n).fill().map(_ => String.fromCharCode(33 + Math.random() * (127 - 33))).join('');
+}
+
+export function getUntilNull(next) {
   let arr = [];
   let counter = 0;
   while (true) {
@@ -18,7 +22,7 @@ function getUntilNull(next) {
   return arr;
 }
 
-function drainN(nextByteFn, n) {
+export function drainN(nextByteFn, n) {
   const result = [];
   let counter = 0;
   while (true) {
@@ -29,6 +33,31 @@ function drainN(nextByteFn, n) {
     if (byte == null) break;
     result.push(byte);
     counter += 1;
+  }
+  return result;
+}
+
+/**
+ * @param {Iterator} iter 
+ * @param {Number} n 
+ * @returns {Uint8ClampedArray}
+ */
+export function drainNBytes(iter, n) {
+  // TODO: assert(n > 0);
+  const result = new Uint8ClampedArray(n);
+  let counter = 0;
+
+  let item = iter.next();
+  while (!item.done) {
+    if (counter >= n) {
+      break;
+    }
+    result[counter++] = item.value;
+    item = iter.next();
+  }
+
+  if (counter < n) {
+    throw new Error("short read");
   }
   return result;
 }
@@ -54,7 +83,7 @@ const convert = {
   dec2hex: (s) => parseInt(s, 10).toString(16),
 };
 
-function debugPrint(arr, format) {
+export function debugPrint(arr, format) {
   if (!format) {
     format = convert.dec2bin;
   }
@@ -64,11 +93,3 @@ function debugPrint(arr, format) {
   });
   console.log(s.join(" "));
 }
-
-module.exports = {
-  getRandomInt,
-  getUntilNull,
-  debugPrint,
-  convert,
-  drainN,
-};
