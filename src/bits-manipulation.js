@@ -2,7 +2,7 @@
 
 import { assert } from "./assert.js";
 
-class Byte {
+export class Byte {
   constructor(b, n) {
     assert(
       b >= 0 && b < 256 && n >= 0 && n <= 8,

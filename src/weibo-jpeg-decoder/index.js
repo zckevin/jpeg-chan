@@ -1,6 +1,6 @@
-import * as bits from "../bits_manipulation.js";
+import * as bits from "../bits-manipulation.js";
 import * as utils from "../utils.js";
-import { WeiboJpegChannel } from "../weibo_jpeg_channel.js";
+import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
 
 import { isBrowser } from "browser-or-node";
 
