@@ -2,6 +2,7 @@
 
 import { assert } from "./assert.js";
 
+// a bits container that have `this.nbits` bits stored inside
 export class ExtByte {
   constructor(value, nbits) {
     this.value = value;
@@ -56,6 +57,12 @@ export class ExtByte {
   }
 }
 
+/**
+ * @param {Uint8Array} arr 
+ * @param {Number} usedBitsN 
+ * @param {Number} mask 
+ * @returns {Uint8Array}
+ */
 export function serialize(arr, usedBitsN, mask) {
   if (!mask) {
     mask = (1 << ((8 - usedBitsN) - 1)) - 1;
@@ -83,10 +90,16 @@ export function serialize(arr, usedBitsN, mask) {
   return result;
 }
 
-export function deserialize(arr, usedBitsN, totalBytes) {
+/**
+ * @param {Uint8Array} arr 
+ * @param {Number} usedBitsN 
+ * @param {Number} bytesNeeded 
+ * @returns {Uint8Array}
+ */
+export function deserialize(arr, usedBitsN, bytesNeeded) {
   assert(usedBitsN > 0 && usedBitsN <= 8, "Invalid usedBitsN.");
 
-  const result = new Uint8Array(totalBytes);
+  const result = new Uint8Array(bytesNeeded);
 
   let counter = 0;
   let arrayIndex = 0;
@@ -94,7 +107,7 @@ export function deserialize(arr, usedBitsN, totalBytes) {
   let cursor = new ExtByte(0, 0);
   while (true) {
     // drained enough demanded bytes from buffer, finish
-    if (counter >= totalBytes) {
+    if (counter >= bytesNeeded) {
       return result;
     }
     // already drained all 8 bits of a byte, return it
@@ -110,7 +123,7 @@ export function deserialize(arr, usedBitsN, totalBytes) {
       if (cursor.length > 0) {
         result[counter++] = cursor.realValue();
       }
-      if (counter < totalBytes) {
+      if (counter < bytesNeeded) {
         throw new Error("deserialize: short read.")
       }
     }

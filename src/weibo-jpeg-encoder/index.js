@@ -28,12 +28,12 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     const targetImageData = new Uint8ClampedArray(width * width * channels);
 
     let counter = 0;
-    // TODO: use other 2 bytes
+    // TODO: use other 2 components except chroma
     arr.forEach(nextByte => {
-      targetImageData[counter++] = nextByte;
-      targetImageData[counter++] = nextByte;
-      targetImageData[counter++] = nextByte;
-      targetImageData[counter++] = 255;
+      targetImageData[counter++] = nextByte; // r
+      targetImageData[counter++] = nextByte; // g
+      targetImageData[counter++] = nextByte; // b
+      targetImageData[counter++] = 255;      // a
     });
 
     return {
