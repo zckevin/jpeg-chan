@@ -45,8 +45,8 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
    * @returns {Promise<ArrayBuffer>}
    */
   async Read(ab, n) {
-    const m = await importDecoderByEnv(this.decoderType);
-    const chromaComponent = await m.getJpegChromaComponent(ab);
+    const decoder = await importDecoderByEnv(this.decoderType);
+    const chromaComponent = await decoder.getJpegChromaComponent(ab);
     return bits.deserialize(chromaComponent, this.usedBitsN, n).buffer;
   }
 }

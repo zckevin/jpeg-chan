@@ -3,11 +3,27 @@ import * as fs from "fs"
 import { assert } from "../assert.js";
 import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
 import * as bits from "../bits-manipulation.js";
-import jpegjs from "../jpeg-js/index.js";
+
+// import lazily/on-demand using webpack
+async function importEncoderByEnv(typ) {
+  switch (typ) {
+    case WeiboJpegEncoder.jpegjsEncoder:
+      return await import(/* webpackPrefetch: true */"./jpegjs-encoder.js");
+    case WeiboJpegEncoder.wasmEncoder:
+      return await import("./wasm-encoder.js");
+    default:
+      throw new Error(`Unknown encoder: ${typ}`);
+  }
+}
 
 export default class WeiboJpegEncoder extends WeiboJpegChannel {
-  constructor(usedBitsN) {
+  static jpegjsEncoder = Symbol("jpegjsEncoder");
+  static wasmEncoder = Symbol("wasmEncoder");
+
+  constructor(usedBitsN, encoderType = WeiboJpegEncoder.jpegjsEncoder) {
     super(usedBitsN);
+    this.encoderType = encoderType;
+    console.log("User encoder:", this.encoderType);
   }
 
   /**
@@ -45,7 +61,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
 
   /**
    * @param {ArrayBuffer} ab, input image raw data
-   * @returns {Promise<ArrayBuffer>}
+   * @returns {ArrayBuffer}
    */
   async Write(ab) {
     assert(ab.byteLength > 0, "input image data should not be empty");
@@ -55,8 +71,9 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
       this.mask
     );
     const targetImageData = this.generateTargetImageData(ab, serialized);
+
+    const encoder = await importEncoderByEnv(this.encoderType);
     const imageQuality = 100; // highest quality
-    const targetImage = jpegjs.encode(targetImageData, imageQuality);
-    return targetImage.data;
+    return encoder.encodeImageData(targetImageData, imageQuality);
   }
 }
