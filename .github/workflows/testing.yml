@@ -14,6 +14,7 @@ jobs:
     - uses: actions/setup-node@v2
       with:
         node-version: '14'
+    - run: git submodule sync --recursive
     - run: npm ci
     - run: npm run jest
     - run: npm run e2e
