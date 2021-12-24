@@ -40,7 +40,9 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
       Math.ceil((ab.byteLength * 8) / this.usedBitsN)
     );
     console.log("target image width: ", width);
-    const channels = 4; // rgba
+
+    // I don't know why jpegjs can't work with 3 channels...
+    const channels = this.encoderType === WeiboJpegEncoder.jpegjsEncoder ? 4 : 3;
     const targetImageData = new Uint8ClampedArray(width * width * channels);
 
     let counter = 0;
@@ -49,7 +51,9 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
       targetImageData[counter++] = nextByte; // r
       targetImageData[counter++] = nextByte; // g
       targetImageData[counter++] = nextByte; // b
-      targetImageData[counter++] = 255;      // a
+      if (this.encoderType === WeiboJpegEncoder.jpegjsEncoder) {
+        targetImageData[counter++] = 255;    // a
+      }
     });
 
     return {
@@ -74,6 +78,6 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
 
     const encoder = await importEncoderByEnv(this.encoderType);
     const imageQuality = 100; // highest quality
-    return encoder.encodeImageData(targetImageData, imageQuality);
+    return await encoder.encodeImageData(targetImageData, imageQuality);
   }
 }
