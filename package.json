@@ -1,6 +1,8 @@
 {
   "type": "module",
   "dependencies": {
+    "@saschazar/wasm-image-loader": "^4.0.0",
+    "@saschazar/wasm-mozjpeg": "^3.0.0",
     "browser-or-node": "^2.0.0",
     "debug": "^4.3.2",
     "node-fetch": "^2.6.0",
