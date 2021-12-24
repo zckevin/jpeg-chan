@@ -8,8 +8,7 @@ import loadJpegForTesting from "./load-jpeg.js";
 const IMAGE_FILE = loadJpegForTesting();
 
 describe("Check JPEG decoders", () => {
-  /*
-  it("browser and jpeg-js should produce same parsed output", async () => {
+  it("browserDecoder & jpegjsDecoder", async () => {
     const resp = await fetch(IMAGE_FILE.url);
     const imageAb = await resp.arrayBuffer();
     
@@ -25,27 +24,26 @@ describe("Check JPEG decoders", () => {
       expect(delta).toBeLessThanOrEqual(1);
     }
   });
-  */
 
-  it("browser should decode jpegjs encoded image", async () => {
-    const n = 1024 * 10;
+  it("jpegjsEncoder & browserDecoder", async () => {
+    const n = 1024 * 1024;
     const usedBitsN = 4;
     const payload = randomBytesArray(n);
 
     const enc = new WeiboJpegEncoder(usedBitsN);
     const dec = new WeiboJpegDecoder(usedBitsN);
 
-    console.time("encode");
     const encoded = await enc.Write(payload.buffer);
-    console.timeEnd("encode");
 
     // const resp = await fetch(IMAGE_FILE.url);
     // const encoded = await resp.arrayBuffer();
  
+    // performance.mark("all");
     const decoded = await dec.Read(encoded, n);
+    // console.log("all", performance.measure("all", "all").duration);
     expect(new Uint8Array(decoded)).toEqual(payload);
 
-    console.log(performance.getEntriesByName("browserDecoder:jpeg decode")[0].duration)
-    console.log(performance.getEntriesByName("browserDecoder:jpeg canvas")[0].duration)
+    // console.log("decode", performance.getEntriesByName("browserDecoder:jpeg decode")[0].duration)
+    // console.log("canvas", performance.getEntriesByName("browserDecoder:jpeg canvas")[0].duration)
   });
 });

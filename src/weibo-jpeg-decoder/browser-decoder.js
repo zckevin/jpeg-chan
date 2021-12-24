@@ -53,7 +53,7 @@ function RGB2Y(r, g, b) {
  * @param {ArrayBuffer} ab
  * @param {number} width
  * @param {number} height
- * @returns {Promise}
+ * @returns {Promise<Uint8ClampedArray>}
  */
 export async function getJpegChromaComponent(ab, width, height) {
   const data = await decodeJpegInBrowser(ab, width, height);

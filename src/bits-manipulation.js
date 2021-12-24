@@ -2,153 +2,117 @@
 
 import { assert } from "./assert.js";
 
-export class Byte {
-  constructor(b, n) {
-    assert(
-      b >= 0 && b < 256 && n >= 0 && n <= 8,
-      `Invalid Byte() constructor arguments: (${b}, ${n})`
-    );
-    // raw data
-    this.byte = b;
-    // has n valid bits in this.byte
-    this.leftn = n;
+export class ExtByte {
+  constructor(value, nbits) {
+    this.value = value;
+    this.nbits = nbits;
   }
 
   get length() {
-    return this.leftn;
+    return this.nbits;
   }
 
   get empty() {
-    return this.leftn <= 0;
+    return this.nbits === 0;
   }
 
-  // drain from most significant bit to least significant bit
-  //
-  // | 1 1 0 0 0 1 0 1 |, leftn = 8
-  //           -> drain(3)
-  // | 0 0 0 1 1 0 0 0 |, leftn = 5
-  //
-  // return a new byte:
-  // | 0 0 0 0 0 1 0 1 |, leftn = 3
-  drain(n) {
-    if (n < this.leftn) {
-      const drained = this.byte >> (this.leftn - n);
-      this.leftn -= n;
-      this.byte = this.byte ^ (drained << this.leftn);
-      return new Byte(drained, n);
-    } else {
-      const ret = new Byte(this.byte, this.leftn);
-      this.leftn = 0;
-      return ret;
+  keepLowerNBits(n) {
+    const mask = (1 << n) - 1;
+    this.value = this.value & mask;
+  }
+
+  drain(drainedN) {
+    if (drainedN > this.nbits) {
+      return new ExtByte(0, 0);
     }
+    const cursor = new ExtByte((this.value >> (this.nbits - drainedN)), drainedN);
+    this.keepLowerNBits(this.nbits - drainedN);
+    this.nbits = this.nbits - drainedN;
+    return cursor;
   }
 
-  // turn this into a standard/normalized byte, which means leftn == 8
-  normalize(mask = 0) {
-    assert(this.leftn <= 8, "Byte normalize() error: leftn > 8.");
-    const result = (this.byte << (8 - this.leftn)) | mask;
-    // this.leftn = 8;
-    return result & 255;
+  concat(other) {
+    this.value = (this.value << other.nbits) | other.value;
+    this.nbits = this.nbits + other.nbits;
   }
 
-  static concat(head, tail) {
-    assert(
-      head.length + tail.length <= 8,
-      "Byte Concat() error: head.length + tail.length > 8."
-    );
-    const lshiftN = tail.length;
-    const b = (head.byte << lshiftN) | tail.byte;
-    return new Byte(b, head.length + tail.length);
+  shiftedValue(mask = 0) {
+    // assert(this.leftn <= 8, "Byte normalize() error: leftn > 8.");
+    assert(this.nbits <= 8);
+    return ((this.value << (8 - this.nbits)) | mask) & 255;
+  }
+
+  realValue() {
+    return this.value;
+  }
+
+  // for debug
+  binaryArray() {
+    const result = [];
+    for (let i = 0; i < this.nbits; i++) {
+      result.push((this.value >> (this.nbits - i - 1)) & 1);
+    }
+    return result;
   }
 }
 
-/**
- * @param {Uint8Array} arr source data
- * @param {Number} unusedBitsN N least significant bits in the iterated byte are unused
- * @param {Number} mask mask to the N lsb bits
- * @returns {Function}
- */
-export function serializeTo(arr, unusedBitsN, mask) {
-  assert(unusedBitsN > 0 && unusedBitsN <= 8, "Invalid unusedBitsN.");
-  let lastRoundByte = new Byte(0, 0);
-  let arrayIndex = 0;
-  return function next() {
-    let result = new Byte(0, 0);
-    while (true) {
-      const needBitsN = 8 - unusedBitsN;
-      if (result.length == needBitsN) {
-        return result.normalize(mask);
-      }
-      if (!lastRoundByte.empty) {
-        result = Byte.concat(
-          result,
-          lastRoundByte.drain(needBitsN - result.length)
-        );
-        continue;
-      }
-      if (arrayIndex < arr.length) {
-        let nextBufferByte = new Byte(arr[arrayIndex++], 8);
-        result = Byte.concat(
-          result,
-          nextBufferByte.drain(needBitsN - result.length)
-        );
-        lastRoundByte = nextBufferByte;
-      } else {
-        if (result.length > 0) {
-          return result.normalize(mask);
-        } else {
-          return null;
-        }
-      }
+export function serialize(arr, usedBitsN, mask) {
+  if (!mask) {
+    mask = (1 << ((8 - usedBitsN) - 1)) - 1;
+  }
+
+  const bytesNeeded = Math.ceil(arr.length * 8 / usedBitsN);
+  const result = new Uint8Array(bytesNeeded);
+  let counter = 0;
+  let cursor = new ExtByte(0, 0);
+  for (let i = 0; i < arr.length; i++) {
+    cursor.concat(new ExtByte(arr[i], 8));
+    let drainedByte = cursor.drain(usedBitsN);
+    while (!drainedByte.empty) {
+      result[counter++] = drainedByte.shiftedValue(mask);
+      drainedByte = cursor.drain(usedBitsN);
     }
-  };
+  }
+  // left bits
+  if (!cursor.empty) {
+    assert(cursor.length < usedBitsN);
+    result[counter++] = cursor.shiftedValue(mask);
+  }
+  // TODO: needs a slice here? 
+  // return result.slice(0, counter);
+  return result;
 }
 
-/**
- * @param {Uint8ClampedArray} arr
- * @param {Number} usedBitsN
- * @param {Number} totalBytes
- * @returns {Iterable}
- */
-export function parseFrom(arr, usedBitsN, totalBytes) {
+export function deserialize(arr, usedBitsN, totalBytes) {
   assert(usedBitsN > 0 && usedBitsN <= 8, "Invalid usedBitsN.");
-  let lastRoundByte = new Byte(0, 0);
+
+  const result = new Uint8Array(totalBytes);
+
   let counter = 0;
   let arrayIndex = 0;
 
-  function next() {
-    let result = new Byte(0, 0);
-    while (true) {
-      // always drained enough demanded bytes from buffer, finish
-      if (counter >= totalBytes) {
-        return {done: true, value: 0};
+  let cursor = new ExtByte(0, 0);
+  while (true) {
+    // drained enough demanded bytes from buffer, finish
+    if (counter >= totalBytes) {
+      return result;
+    }
+    // already drained all 8 bits of a byte, return it
+    if (cursor.length >= 8) {
+      result[counter++] = cursor.drain(8).realValue();
+      continue;
+    }
+    // if has more bytes to drain
+    if (arrayIndex < arr.length) {
+      let nextBufferByte = new ExtByte(arr[arrayIndex++], 8).drain(usedBitsN);
+      cursor.concat(nextBufferByte);
+    } else {
+      if (cursor.length > 0) {
+        result[counter++] = cursor.realValue();
       }
-      // already drained all 8 bits of a byte, return it
-      if (result.length == 8) {
-        counter += 1;
-        return {done: false, value: result.normalize()};
-      }
-      // concat bits from last round byte
-      if (!lastRoundByte.empty) {
-        result = Byte.concat(result, lastRoundByte.drain(8 - result.length));
-        continue;
-      }
-      // if has more bytes to drain
-      if (arrayIndex < arr.length) {
-        let nextBufferByte = new Byte(arr[arrayIndex++], 8).drain(usedBitsN);
-        result = Byte.concat(result, nextBufferByte.drain(8 - result.length));
-        lastRoundByte = nextBufferByte;
-      } else {
-        if (result.length > 0 && counter < totalBytes) {
-          counter += 1;
-          return {done: false, value: result.normalize()};
-        } else {
-          return {done: true, value: 0};
-        }
+      if (counter < totalBytes) {
+        throw new Error("deserialize: short read.")
       }
     }
-  };
-
-  const iter = { next };
-  return iter;
+  }
 }

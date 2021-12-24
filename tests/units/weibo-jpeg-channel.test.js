@@ -4,11 +4,11 @@ import { randomBytesArray } from "../../src/utils.js";
 
 import * as fs from "fs"
 
-test("jpeg encode/decode loop should works", async () => {
+test("jpegjsEncoder & jpegjsDecoder perf", async () => {
   // const n = 5;
   // const payload = new Uint8Array([1, 2, 3, 4, 5]);
 
-  const n = 1024 * 100;
+  const n = 1024 * 1024;
   const usedBitsN = 4;
   const payload = randomBytesArray(n);
 

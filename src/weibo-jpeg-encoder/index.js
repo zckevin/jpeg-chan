@@ -19,7 +19,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     return Math.ceil(Math.sqrt(byteLength));
   }
 
-  generateTargetImageData(ab, nextByteFn) {
+  generateTargetImageData(ab, arr) {
     const width = this.cacluateSquareImageWidth(
       Math.ceil((ab.byteLength * 8) / this.usedBitsN)
     );
@@ -27,15 +27,14 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     const channels = 4; // rgba
     const targetImageData = new Uint8ClampedArray(width * width * channels);
 
-    let nextByte = nextByteFn();
     let counter = 0;
-    while (nextByte !== null) {
+    // TODO: use other 2 bytes
+    arr.forEach(nextByte => {
       targetImageData[counter++] = nextByte;
       targetImageData[counter++] = nextByte;
       targetImageData[counter++] = nextByte;
       targetImageData[counter++] = 255;
-      nextByte = nextByteFn();
-    }
+    });
 
     return {
       width: width,
@@ -50,25 +49,14 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
    */
   async Write(ab) {
     assert(ab.byteLength > 0, "input image data should not be empty");
-    const nextByteFn = bits.serializeTo(
+    const serialized = bits.serialize(
       new Uint8Array(ab),
       this.unusedBitsN,
       this.mask
     );
-
-    // const templateImageFilePath = "./image_templates/8.jpg";
-    // const imageBuf = fs.readFileSync(templateImageFilePath);
-    // const targetImageData = jpegjs.writeDataToRawImage(
-    //   templateImageFilePath, imageBuf, nextByteFn
-    // );
-
-    const targetImageData = this.generateTargetImageData(ab, nextByteFn);
+    const targetImageData = this.generateTargetImageData(ab, serialized);
     const imageQuality = 100; // highest quality
     const targetImage = jpegjs.encode(targetImageData, imageQuality);
-
-    const buf = targetImage.data;
-    // Node.js Buffer to ArrayBuffer
-    // return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-    return buf;
+    return targetImage.data;
   }
 }

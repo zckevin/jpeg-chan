@@ -1,4 +1,4 @@
-const bits = require("./bits_manipulation");
+const bits = require("./bits-manipulation");
 const assert = require('assert').strict;
 const utils = require("./utils");
 
