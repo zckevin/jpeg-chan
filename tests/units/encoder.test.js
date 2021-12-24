@@ -2,8 +2,6 @@ import WeiboJpegEncoder from "../../src/weibo-jpeg-encoder/";
 import WeiboJpegDecoder from "../../src/weibo-jpeg-decoder/";
 import { randomBytesArray } from "../../src/utils.js";
 
-import * as fs from "fs"
-
 test("jpegjsEncoder & wasmEncoder should produce same result", async () => {
   const usedBitsN = 4;
   const n = 1024 * 1024;
