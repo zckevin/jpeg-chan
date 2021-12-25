@@ -71,7 +71,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     assert(ab.byteLength > 0, "input image data should not be empty");
     const serialized = bits.serialize(
       new Uint8Array(ab),
-      this.unusedBitsN,
+      this.usedBitsN,
       this.mask
     );
     const targetImageData = this.generateTargetImageData(ab, serialized);

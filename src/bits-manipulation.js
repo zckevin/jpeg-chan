@@ -1,5 +1,6 @@
 "use strict"
 
+import { WeiboJpegChannel } from "./weibo-jpeg-channel.js";
 import { assert } from "./assert.js";
 
 // a bits container that have `this.nbits` bits stored inside
@@ -18,8 +19,7 @@ export class ExtByte {
   }
 
   keepLowerNBits(n) {
-    const mask = (1 << n) - 1;
-    this.value = this.value & mask;
+    this.value = this.value & ((1 << n) - 1);
   }
 
   drain(drainedN) {
@@ -60,16 +60,13 @@ export class ExtByte {
 /**
  * @param {Uint8Array} arr 
  * @param {Number} usedBitsN 
- * @param {Number} mask 
  * @returns {Uint8Array}
  */
-export function serialize(arr, usedBitsN, mask) {
-  if (!mask) {
-    mask = (1 << ((8 - usedBitsN) - 1)) - 1;
-  }
-
+export function serialize(arr, usedBitsN) {
+  const mask = WeiboJpegChannel.getMask(usedBitsN);
   const bytesNeeded = Math.ceil(arr.length * 8 / usedBitsN);
   const result = new Uint8Array(bytesNeeded);
+
   let counter = 0;
   let cursor = new ExtByte(0, 0);
   for (let i = 0; i < arr.length; i++) {

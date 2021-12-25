@@ -43,8 +43,9 @@ test("ExtByte.prototype.concat()", () => {
 
 test("serialize/deserialize", () => {
   const arr = new Uint8Array([1, 2, 3, 4]);
-  const tmp = serialize(arr, 4);
+  const usedBitsN = 4;
+  const tmp = serialize(arr, usedBitsN);
 
-  const deserialized = deserialize(tmp, 4, arr.length);
+  const deserialized = deserialize(tmp, usedBitsN, arr.length);
   expect(deserialized).toEqual(arr);
 })
