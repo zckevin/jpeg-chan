@@ -1,7 +1,6 @@
 import * as https from "https"
 import * as dotenv from "dotenv";
 import fetch from 'node-fetch';
-import { assert } from "../assert.js";
 
 // weibo.com old version api
 const UPLOAD_API_URL = "https://picupload.weibo.com/interface/pic_upload.php?data=1&p=1&url=weibo.com&markpos=1&logo=1&marks=0&app=miniblog&s=json&pri=null&file_source=1";

@@ -4,7 +4,7 @@
     "@saschazar/wasm-image-loader": "^4.0.0",
     "@saschazar/wasm-mozjpeg": "^3.0.0",
     "browser-or-node": "^2.0.0",
-    "commander": "^2.20.3",
+    "commander": "^8.3.0",
     "debug": "^4.3.2",
     "dotenv": "^10.0.0",
     "node-fetch": "^2.6.0"
