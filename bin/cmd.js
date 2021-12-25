@@ -3,9 +3,11 @@ import fetch from 'node-fetch';
 import { Command } from 'commander';
 import { randomBytesArray } from "../src/utils.js";
 
-import { Upload } from '../src/sinks/weibo.js';
+// import { Upload } from '../src/sinks/weibo.js';
+import { Upload } from '../src/sinks/bilibili.js';
 import WeiboJpegEncoder from "../src/weibo-jpeg-encoder/index.js";
 import WeiboJpegDecoder from "../src/weibo-jpeg-decoder/index.js";
+import { url } from "inspector";
 
 async function validate(original, usedBitsN, url) {
   const buf = await fetch(url).then(res => res.buffer());
@@ -29,7 +31,10 @@ async function upload(buf, usedBitsN, retries = 3) {
   const urls = await Upload(encoded, false);
 
   console.log(urls);
-  console.log(await validate(buf, usedBitsN, urls[0]));
+  for (let i = 0; i < urls.length; i++) {
+    console.log(urls[i]);
+    console.log(await validate(buf, usedBitsN, urls[i]));
+  }
 }
 
 const program = new Command();

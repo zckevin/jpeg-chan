@@ -2,8 +2,23 @@ export function getRandomInt(max) {
   return Math.floor(Math.random() * Math.floor(max));
 }
 
-export function randomString(n = 8) {
-  return Array(n).fill().map(_ => String.fromCharCode(33 + Math.random() * (127 - 33))).join('');
+export function randomString(length = 8) {
+  // return Array(n).fill().map(_ => String.fromCharCode(33 + Math.random() * (127 - 33))).join('');
+  let result = "", seeds
+
+  for(let i = 0; i < length - 1; i++){
+      //Generate seeds array, that will be the bag from where randomly select generated char
+      seeds = [
+          Math.floor(Math.random() * 10) + 48,
+          Math.floor(Math.random() * 25) + 65,
+          Math.floor(Math.random() * 25) + 97
+      ]
+      
+      //Choise randomly from seeds, convert to char and append to result
+      result += String.fromCharCode(seeds[Math.floor(Math.random() * 3)])
+  }
+
+  return result
 }
 
 export function randomBytesArray(n) {
