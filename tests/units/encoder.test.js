@@ -1,23 +1,25 @@
 import WeiboJpegEncoder from "../../src/weibo-jpeg-encoder/";
 import WeiboJpegDecoder from "../../src/weibo-jpeg-decoder/";
+import { UsedBits } from '../../src/bits-manipulation.js';
 import { randomBytesArray } from "../../src/utils.js";
 
-test("test different usedBitsN value", async () => {
-  async function test(usedBitsN) {
+test("test different usedBits value", async () => {
+  async function test(usedBits) {
     const n = 10;
     const payload = randomBytesArray(n);
 
-    const enc = new WeiboJpegEncoder(usedBitsN, WeiboJpegEncoder.jpegjsEncoder);
-    const dec = new WeiboJpegDecoder(usedBitsN, WeiboJpegDecoder.jpegjsDecoder);
+    const enc = new WeiboJpegEncoder(usedBits, WeiboJpegEncoder.jpegjsEncoder);
+    const dec = new WeiboJpegDecoder(usedBits, WeiboJpegDecoder.jpegjsDecoder);
   
     const encoded = await enc.Write(payload.buffer);
     const decoded = await dec.Read(encoded, n);
     expect(new Uint8Array(decoded)).toEqual(payload);
   }
 
-  for (let n = 0; n < 10; n++) {
-    for (let i = 1; i <= 6; i++) {
-      await test(i);
+  for (let i = 1; i <= 6; i++) {
+    for (let j = i; j <= 6; j++) {
+      const usedBits = new UsedBits(i, j);
+      await test(usedBits);
     }
   }
 });

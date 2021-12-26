@@ -70,7 +70,7 @@ export class BilibiliSink extends BasicSink {
     const url = await upload(ab);
     // https://jxyblog.top/article/e3efd7b7.html
     return [
-      `${url}@100q.jpg`, // higest compression rate
+     // `${url}@100q.jpg`, // higest compression rate
       `${url}`, // original
     ]
   }

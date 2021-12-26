@@ -1,16 +1,20 @@
-import { assert } from "./assert.js";
+import { assert, assertNotReached } from "./assert.js";
+import { UsedBits } from "./bits-manipulation.js"
 
 export class WeiboJpegChannel {
-  /**
-   * @param {Number} usedBitsN, how many significant side bits are used as data in a byte(8 bits)
-   */
-  constructor(usedBitsN) {
-    assert(usedBitsN <= 8 && usedBitsN >= 1, "usedBitsN should be between 1 and 8");
-    if (usedBitsN > 6) {
-      console.warn(`Set usedBitsN > 6 is not gonna work in most situations.`)
+  constructor(usedBits) {
+    if (typeof usedBits == "number") {
+      assert(usedBits <= 8 && usedBits >= 1, "usedBitsN should be between 1 and 8");
+      if (usedBits > 6) {
+        console.warn(`Set usedBitsN > 6 is not gonna work in most situations.`)
+      }
+      this.mask = WeiboJpegChannel.getMask(usedBits);
+      this.usedBits = new UsedBits(1, usedBits);
+    } else if (usedBits instanceof UsedBits) {
+      this.usedBits = usedBits;
+    } else {
+      assertNotReached();
     }
-    this.usedBitsN = usedBitsN;
-    this.mask = WeiboJpegChannel.getMask(usedBitsN);
   }
 
   // mask try to make USED BITS surrive from JPEG's lossy compression,

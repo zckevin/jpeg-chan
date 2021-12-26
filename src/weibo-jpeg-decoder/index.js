@@ -1,5 +1,4 @@
 import * as bits from "../bits-manipulation.js";
-import * as utils from "../utils.js";
 import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
 
 import { isBrowser } from "browser-or-node";
@@ -24,11 +23,11 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
   static wasmDecoder = Symbol("wasmDecoder");
 
   /**
-   * @param {Number} usedBitsN 
+   * @param {Number} usedBits 
    * @param {Symbol} decoderType 
    */
-  constructor(usedBitsN, decoderType) {
-    super(usedBitsN);
+  constructor(usedBits, decoderType) {
+    super(usedBits);
 
     if (decoderType) {
       this.decoderType = decoderType;
@@ -47,6 +46,6 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
   async Read(ab, n) {
     const decoder = await importDecoderByEnv(this.decoderType);
     const chromaComponent = await decoder.getJpegChromaComponent(ab);
-    return bits.deserialize(chromaComponent, this.usedBitsN, n).buffer;
+    return bits.deserialize(chromaComponent, this.usedBits, n).buffer;
   }
 }

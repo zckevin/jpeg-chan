@@ -1,5 +1,3 @@
-import * as fs from "fs"
-
 import { assert } from "../assert.js";
 import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
 import * as bits from "../bits-manipulation.js";
@@ -20,8 +18,8 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
   static jpegjsEncoder = Symbol("jpegjsEncoder");
   static wasmEncoder = Symbol("wasmEncoder");
 
-  constructor(usedBitsN, encoderType = WeiboJpegEncoder.jpegjsEncoder) {
-    super(usedBitsN);
+  constructor(usedBits, encoderType = WeiboJpegEncoder.jpegjsEncoder) {
+    super(usedBits);
     this.encoderType = encoderType;
     console.log("User encoder:", this.encoderType);
   }
@@ -35,10 +33,17 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     return Math.ceil(Math.sqrt(byteLength));
   }
 
-  generateTargetImageData(ab, arr) {
-    const width = this.cacluateSquareImageWidth(
-      Math.ceil((ab.byteLength * 8) / this.usedBitsN)
-    );
+  setPhotoAsMaskFn(fn) {
+    this.nextPhotoMaskByte = fn;
+  }
+
+  debugPrint(byte) {
+    const s = "00000000" + byte.toString(2);
+    console.log(s.substr(-8, 8));
+  }
+
+  generateTargetImageData(arr) {
+    const width = this.cacluateSquareImageWidth(arr.byteLength);
     console.log("target image width: ", width);
 
     // I don't know why jpegjs can't work with 3 channels...
@@ -47,7 +52,16 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
 
     let counter = 0;
     // TODO: use other 2 components except chroma
-    arr.forEach(nextByte => {
+    arr.forEach((nextByte, index) => {
+      // Fill the setted mask image's chroma component byte's most significant bits 
+      // to output image's most significant bits.
+      if (this.nextPhotoMaskByte) {
+        assert(this.usedBits.from >= 2,
+          "When using photo mask, usedBits' from bit index should be greater than 1.")
+        const photoMask = this.nextPhotoMaskByte(width);
+        const usedMask = bits.keepMostSignificantNBits(photoMask, this.usedBits.from - 1);
+        nextByte |= usedMask;
+      }
       targetImageData[counter++] = nextByte; // r
       targetImageData[counter++] = nextByte; // g
       targetImageData[counter++] = nextByte; // b
@@ -69,12 +83,8 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
    */
   async Write(ab) {
     assert(ab.byteLength > 0, "input image data should not be empty");
-    const serialized = bits.serialize(
-      new Uint8Array(ab),
-      this.usedBitsN,
-      this.mask
-    );
-    const targetImageData = this.generateTargetImageData(ab, serialized);
+    const serialized = bits.serialize(new Uint8Array(ab), this.usedBits);
+    const targetImageData = this.generateTargetImageData(serialized);
 
     const encoder = await importEncoderByEnv(this.encoderType);
     const imageQuality = 100; // highest quality

@@ -78,7 +78,8 @@ export class WeiboSink extends BasicSink {
   async doUpload(ab, options) {
     const pid = await upload(Buffer.from(ab));
     const protocol = options.useHttps ? "https" : "http";
-    const CDN_SITES = ["wx1", "tva1"];
+    // const CDN_SITES = ["wx1", "tva1"];
+    const CDN_SITES = ["wx1"];
     return CDN_SITES.map(site => {
       return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
     });

@@ -1,11 +1,11 @@
-import { ExtByte, serialize, deserialize } from '../../src/bits-manipulation.js';
+import { UsedBits, ExtByte, serialize, deserialize } from '../../src/bits-manipulation.js';
 import { randomBytesArray } from "../../src/utils.js";
 
-test("ExtByte.prototype.drain()", () => {
+test("ExtByte.prototype.drainN()", () => {
   function testDrainByte(byte, drainN, expectedValue) {
     const originalBinaryArray = byte.binaryArray();
 
-    const drained = byte.drain(drainN);
+    const drained = byte.drainN(drainN);
     expect(drained.length).toEqual(drainN);
     expect(drained.binaryArray()).toEqual(originalBinaryArray.slice(0, drainN));
     expect(byte.binaryArray()).toEqual(originalBinaryArray.slice(drainN));
@@ -40,6 +40,33 @@ test("ExtByte.prototype.concat()", () => {
   testConcat(new ExtByte(0xff, 8), new ExtByte(0xff, 8), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
 });
 
+test("ExtByte.prototype.pick()", () => {
+  const original = [0,1,0,1,0,1,0,1];
+  const byte = ExtByte.fromBinaryArray(original);
+
+  for (let i = 0; i < original.length; i++) {
+    for (let j = i; j < original.length; j++) {
+      const picked = byte.pick(new UsedBits(i + 1, j + 1));
+      expect(picked.binaryArray()).toEqual(original.slice(i, j + 1));
+    }
+  }
+});
+
+test("ExtByte.prototype.normalize()", () => {
+  const original = [0,1,0,1,0,1,0,1];
+  const byte = ExtByte.fromBinaryArray(original);
+
+  for (let i = 0; i < original.length; i++) {
+    for (let j = i; j < original.length; j++) {
+      const usedBits = new UsedBits(i + 1, j + 1);
+      const picked = byte.pick(usedBits);
+
+      const normalized = picked.normalize(usedBits);
+      const picked2 = (new ExtByte(normalized, 8)).pick(usedBits);
+      expect(picked2.binaryArray()).toEqual(original.slice(i, j + 1));
+    }
+  }
+});
 
 test("serialize/deserialize", () => {
   const arr = new Uint8Array([1, 2, 3, 4]);

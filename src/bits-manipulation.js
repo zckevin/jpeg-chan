@@ -1,7 +1,42 @@
 "use strict"
 
-import { WeiboJpegChannel } from "./weibo-jpeg-channel.js";
 import { assert } from "./assert.js";
+
+export function keepMostSignificantNBits(byte, n) {
+  // assert(n >= 0 & n <= 8);
+  return (byte >> (8 - n)) << (8 - n);
+}
+
+export function keepLeastSignificantNBits(byte, n) {
+  // assert(n >= 0 & n <= 8);
+  return byte & ((1 << n) - 1);
+}
+
+export class UsedBits {
+  /**
+   * | 1 2 3 4  5 6 7 8 |
+   * @param {Number} from 
+   * @param {Number} to inclusive
+   */
+  constructor(from, to) {
+    assert(from >= 1 && to <= 8 && from <= to, `Invalid UsedBits value: ${from}-${to}`);
+    this.from = from;
+    this.to = to;
+  }
+
+  length() {
+    return this.to - this.from + 1;
+  }
+
+  mask() {
+    if (this.to > 6) {
+      console.warn("WARN: set usedBitsN > 6 is not gonna work in most situations.")
+      return 0;
+    }
+    const diff = 8 - (this.to + 1);
+    return (1 << diff) - 1;
+  }
+}
 
 // a bits container that have `this.nbits` bits stored inside
 export class ExtByte {
@@ -18,18 +53,18 @@ export class ExtByte {
     return this.nbits === 0;
   }
 
-  keepLowerNBits(n) {
-    this.value = this.value & ((1 << n) - 1);
-  }
-
-  drain(drainedN) {
-    if (drainedN > this.nbits) {
+  /**
+   * @param {Number} n 
+   * @returns 
+   */
+  drainN(n) {
+    if (n > this.nbits) {
       return new ExtByte(0, 0);
     }
-    const cursor = new ExtByte((this.value >> (this.nbits - drainedN)), drainedN);
-    this.keepLowerNBits(this.nbits - drainedN);
-    this.nbits = this.nbits - drainedN;
-    return cursor;
+    const byte = new ExtByte((this.value >> (this.nbits - n)), n);
+    this.value = keepLeastSignificantNBits(this.value, this.nbits - n);
+    this.nbits = this.nbits - n;
+    return byte;
   }
 
   concat(other) {
@@ -37,14 +72,27 @@ export class ExtByte {
     this.nbits = this.nbits + other.nbits;
   }
 
-  shiftedValue(mask = 0) {
-    // assert(this.leftn <= 8, "Byte normalize() error: leftn > 8.");
-    assert(this.nbits <= 8);
-    return ((this.value << (8 - this.nbits)) | mask) & 255;
+  pick(usedBits) {
+    const tmp1 = keepMostSignificantNBits(this.value, usedBits.to);
+    const tmp2 = tmp1 >> (8 - usedBits.to);
+    const tmp3 = keepLeastSignificantNBits(tmp2, usedBits.length());
+    return new ExtByte(tmp3, usedBits.length());
+  }
+
+  normalize(usedBits) {
+    const leftIndex = (8 - this.nbits) + 1;
+    const diff = leftIndex - usedBits.from;
+    return ((this.value << diff) | usedBits.mask()) & 255;
   }
 
   realValue() {
     return this.value;
+  }
+
+  // for debug
+  static fromBinaryArray(binaryArray) {
+    const v = parseInt(binaryArray.join(""), 2);
+    return new ExtByte(v, binaryArray.length);
   }
 
   // for debug
@@ -59,28 +107,31 @@ export class ExtByte {
 
 /**
  * @param {Uint8Array} arr 
- * @param {Number} usedBitsN 
+ * @param {UsedBits} usedBits 
  * @returns {Uint8Array}
  */
-export function serialize(arr, usedBitsN) {
-  const mask = WeiboJpegChannel.getMask(usedBitsN);
-  const bytesNeeded = Math.ceil(arr.length * 8 / usedBitsN);
+export function serialize(arr, usedBits) {
+  if (typeof usedBits === "number") {
+    usedBits = new UsedBits(1, usedBits);
+  }
+
+  const bytesNeeded = Math.ceil(arr.length * 8 / usedBits.length());
   const result = new Uint8Array(bytesNeeded);
 
   let counter = 0;
   let cursor = new ExtByte(0, 0);
   for (let i = 0; i < arr.length; i++) {
     cursor.concat(new ExtByte(arr[i], 8));
-    let drainedByte = cursor.drain(usedBitsN);
+    let drainedByte = cursor.drainN(usedBits.length());
     while (!drainedByte.empty) {
-      result[counter++] = drainedByte.shiftedValue(mask);
-      drainedByte = cursor.drain(usedBitsN);
+      result[counter++] = drainedByte.normalize(usedBits);
+      drainedByte = cursor.drainN(usedBits.length());
     }
   }
   // left bits
   if (!cursor.empty) {
-    assert(cursor.length < usedBitsN);
-    result[counter++] = cursor.shiftedValue(mask);
+    assert(cursor.length < usedBits.length());
+    result[counter++] = cursor.normalize(usedBits);
   }
   // TODO: needs a slice here? 
   // return result.slice(0, counter);
@@ -89,18 +140,17 @@ export function serialize(arr, usedBitsN) {
 
 /**
  * @param {Uint8Array} arr 
- * @param {Number} usedBitsN 
+ * @param {UsedBits} usedBits 
  * @param {Number} bytesNeeded 
  * @returns {Uint8Array}
  */
-export function deserialize(arr, usedBitsN, bytesNeeded) {
-  assert(usedBitsN > 0 && usedBitsN <= 8, "Invalid usedBitsN.");
+export function deserialize(arr, usedBits, bytesNeeded) {
+  if (typeof usedBits === "number") {
+    usedBits = new UsedBits(1, usedBits);
+  }
 
   const result = new Uint8Array(bytesNeeded);
-
-  let counter = 0;
-  let arrayIndex = 0;
-
+  let counter = 0, arrayIndex = 0;
   let cursor = new ExtByte(0, 0);
   while (true) {
     // drained enough demanded bytes from buffer, finish
@@ -109,12 +159,12 @@ export function deserialize(arr, usedBitsN, bytesNeeded) {
     }
     // already drained all 8 bits of a byte, return it
     if (cursor.length >= 8) {
-      result[counter++] = cursor.drain(8).realValue();
+      result[counter++] = cursor.drainN(8).realValue();
       continue;
     }
     // if has more bytes to drain
     if (arrayIndex < arr.length) {
-      let nextBufferByte = new ExtByte(arr[arrayIndex++], 8).drain(usedBitsN);
+      let nextBufferByte = new ExtByte(arr[arrayIndex++], 8).pick(usedBits);
       cursor.concat(nextBufferByte);
     } else {
       if (cursor.length > 0) {
