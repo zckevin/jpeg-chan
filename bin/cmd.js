@@ -3,11 +3,12 @@ import fetch from 'node-fetch';
 import { Command } from 'commander';
 import { randomBytesArray } from "../src/utils.js";
 
-// import { Upload } from '../src/sinks/weibo.js';
-import { Upload } from '../src/sinks/bilibili.js';
-import WeiboJpegEncoder from "../src/weibo-jpeg-encoder/index.js";
+import { WeiboSink } from '../src/sinks/weibo.js';
+import { BilibiliSink } from '../src/sinks/bilibili.js';
+
 import WeiboJpegDecoder from "../src/weibo-jpeg-decoder/index.js";
-import { url } from "inspector";
+
+const sinks = [ WeiboSink, BilibiliSink ];
 
 async function validate(original, usedBitsN, url) {
   const buf = await fetch(url).then(res => res.buffer());
@@ -25,15 +26,14 @@ async function validate(original, usedBitsN, url) {
   return true;
 }
 
-async function upload(buf, usedBitsN, retries = 3) {
-  const enc = new WeiboJpegEncoder(usedBitsN, WeiboJpegEncoder.jpegjsEncoder);
-  const encoded = await enc.Write(buf);
-  const urls = await Upload(encoded, false);
-
-  console.log(urls);
-  for (let i = 0; i < urls.length; i++) {
-    console.log(urls[i]);
-    console.log(await validate(buf, usedBitsN, urls[i]));
+async function upload(buf, usedBitsN) {
+  for (let i = 0; i < sinks.length; i++) {
+    const sink = new sinks[i](usedBitsN);
+    const urls = await sink.Upload(buf);
+    for (let j = 0; j < urls.length; j++) {
+      console.log(urls[j]);
+      console.log(await validate(buf, sink.usedBitsN, urls[j]));
+    }
   }
 }
 
@@ -41,7 +41,6 @@ const program = new Command();
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
-  .argument('[usedBitsN]', 'number of bits to use', Number, 2)
   .action(async (filePath, usedBitsN) => {
     console.log(filePath, usedBitsN)
     await upload(fs.readFileSync(filePath), usedBitsN);
@@ -50,7 +49,7 @@ program
 program
   .command('test')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
-  .argument('[usedBitsN]', 'number of bits to use', Number, 2)
+  .argument('[usedBitsN]', 'number of bits to use', Number)
   .action(async (size, usedBitsN) => {
     let n;
     if (size.match(/^(\d+)$/)) {

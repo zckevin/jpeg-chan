@@ -1,13 +1,14 @@
 import * as https from "https"
 import * as dotenv from "dotenv";
 import fetch from 'node-fetch';
+import { BasicSink } from "./base.js";
 
 // weibo.com old version api
 const UPLOAD_API_URL = "https://picupload.weibo.com/interface/pic_upload.php?data=1&p=1&url=weibo.com&markpos=1&logo=1&marks=0&app=miniblog&s=json&pri=null&file_source=1";
 
 dotenv.config();
 
-async function doUpload(imageBuffer) {
+async function upload(imageBuffer) {
   const cookie = process.env.WEIBO_COOKIE;
   if (!cookie) {
     throw new Error("No WEIBO_COOKIE found in .env");
@@ -68,15 +69,19 @@ async function doUpload(imageBuffer) {
     });
 }
 
-/**
- * @param {Buffer} imageBuffer 
- * @returns {Array<string>}
- */
-export async function Upload(imageBuffer, useHttps = true) {
-  const pid = await doUpload(imageBuffer);
-  const protocol = useHttps ? "https" : "http";
-  const CDN_SITES = ["wx1", "tva1"];
-  return CDN_SITES.map(site => {
-    return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
-  });
+
+export class WeiboSink extends BasicSink {
+  constructor(usedBitsN = 2) {
+    super(usedBitsN);
+  }
+
+  async doUpload(ab, options) {
+    const pid = await upload(Buffer.from(ab));
+    const protocol = options.useHttps ? "https" : "http";
+    // const CDN_SITES = ["wx1", "tva1"];
+    const CDN_SITES = ["wx1"];
+    return CDN_SITES.map(site => {
+      return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
+    });
+  }
 }

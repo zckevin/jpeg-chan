@@ -2,6 +2,7 @@ import * as dotenv from "dotenv";
 import FormData from "form-data";
 import http from "http";
 import fs from "fs"
+import { BasicSink } from "./base.js";
 
 dotenv.config();
 
@@ -10,7 +11,7 @@ dotenv.config();
  * @param {ArrayBuffer} ab 
  * @returns {String} url
  */
-async function doUpload(ab) {
+async function upload(ab) {
   const SESSDATA = process.env.BILIBILI_SESSION;
   if (!SESSDATA) {
     throw new Error("No BILIBILI_SESSION found in .env");
@@ -56,20 +57,18 @@ async function doUpload(ab) {
   });
 }
 
-/**
- * @param {Buffer} imageBuffer 
- * @returns {Array<string>}
- */
-export async function Upload(imageBuffer, useHttps = true) {
-  const url = await doUpload(imageBuffer);
 
-  // Full quality
-  // https://jxyblog.top/article/e3efd7b7.html
-  return [
-    `${url}`,
-    `${url}@100q.jpg`
-  ]
+export class BilibiliSink extends BasicSink {
+  constructor(usedBitsN = 5) {
+    super(usedBitsN);
+  }
+
+  async doUpload(ab, options) {
+    const url = await upload(ab);
+    // https://jxyblog.top/article/e3efd7b7.html
+    return [
+      `${url}@100q.jpg`, // higest compression rate
+      `${url}`, // original
+    ]
+  }
 }
-
-
-
