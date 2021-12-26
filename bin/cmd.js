@@ -2,24 +2,22 @@ import * as fs from "fs"
 import fetch from 'node-fetch';
 import { Command } from 'commander';
 import { randomBytesArray } from "../src/utils.js";
-
 import { WeiboSink } from '../src/sinks/weibo.js';
 import { BilibiliSink } from '../src/sinks/bilibili.js';
-
 import WeiboJpegDecoder from "../src/weibo-jpeg-decoder/index.js";
 
 const sinks = [ WeiboSink, BilibiliSink ];
 
 async function validate(original, usedBitsN, url) {
-  const buf = await fetch(url).then(res => res.buffer());
-  console.log("inflation rate:", (buf.byteLength / original.byteLength).toFixed(2));
+  const ab = await fetch(url).then(res => res.arrayBuffer());
+  console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2));
 
   const dec = new WeiboJpegDecoder(usedBitsN, WeiboJpegDecoder.jpegjsDecoder);
-  const decoded = Buffer.from(await dec.Read(buf, original.byteLength));
+  const decoded = Buffer.from(await dec.Read(ab, original.byteLength));
   // console.log(original, decoded);
   for (let i = 0; i < original.byteLength; i++) {
     if (original[i] !== decoded[i]) {
-      console.log(`index ${i}`, original[i], decoded[i])
+      console.log(`index ${i}`, original[i], decoded[i]);
       return false;
     }
   }

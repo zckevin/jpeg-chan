@@ -1,7 +1,10 @@
+/**
+ * Refer to https://github.com/xlzy520/typora-plugin-bilibili
+ */
+
 import * as dotenv from "dotenv";
 import FormData from "form-data";
 import http from "http";
-import fs from "fs"
 import { BasicSink } from "./base.js";
 
 dotenv.config();
@@ -59,7 +62,7 @@ async function upload(ab) {
 
 
 export class BilibiliSink extends BasicSink {
-  constructor(usedBitsN = 5) {
+  constructor(usedBitsN = 6) {
     super(usedBitsN);
   }
 
