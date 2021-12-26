@@ -1,5 +1,5 @@
-import WeiboJpegEncoder from "../../src/weibo-jpeg-encoder/index.js";
-import WeiboJpegDecoder from "../../src/weibo-jpeg-decoder/index.js";
+import JpegEncoder from "../../src/jpeg-encoder/index.js";
+import JpegDecoder from "../../src/jpeg-decoder/index.js";
 import { randomBytesArray } from "../../src/utils.js";
 
 describe("Check encoders & decoders loop", () => {
@@ -8,19 +8,19 @@ describe("Check encoders & decoders loop", () => {
   const payload = randomBytesArray(n);
   
   it("jpegjsEncoder & jpegjsDecoder", async () => {
-    const enc = new WeiboJpegEncoder(usedBitsN);
+    const enc = new JpegEncoder(usedBitsN);
     const encoded = await enc.Write(payload.buffer);
 
-    const dec = new WeiboJpegDecoder(usedBitsN, WeiboJpegDecoder.jpegjsDecoder);
+    const dec = new JpegDecoder(usedBitsN, JpegDecoder.jpegjsDecoder);
     const decoded = await dec.Read(encoded, n);
     expect(new Uint8Array(decoded)).toEqual(payload);
   });
 
   it("jpegjsEncoder & browserDecoder", async () => {
-    const enc = new WeiboJpegEncoder(usedBitsN);
+    const enc = new JpegEncoder(usedBitsN);
     const encoded = await enc.Write(payload.buffer);
 
-    const dec = new WeiboJpegDecoder(usedBitsN, WeiboJpegDecoder.browserDecoder);
+    const dec = new JpegDecoder(usedBitsN, JpegDecoder.browserDecoder);
     const decoded = await dec.Read(encoded, n);
     expect(new Uint8Array(decoded)).toEqual(payload);
   });

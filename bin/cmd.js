@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { randomBytesArray } from "../src/utils.js";
 import { WeiboSink } from '../src/sinks/weibo.js';
 import { BilibiliSink } from '../src/sinks/bilibili.js';
-import WeiboJpegDecoder from "../src/weibo-jpeg-decoder/index.js";
+import JpegDecoder from "../src/jpeg-decoder/index.js";
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "console";
 
@@ -14,7 +14,7 @@ async function validate(original, usedBits, url) {
   const ab = await fetch(url).then(res => res.arrayBuffer());
   console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2));
 
-  const dec = new WeiboJpegDecoder(usedBits, WeiboJpegDecoder.jpegjsDecoder);
+  const dec = new JpegDecoder(usedBits, JpegDecoder.jpegjsDecoder);
   const decoded = Buffer.from(await dec.Read(ab, original.byteLength));
   // console.log(original, decoded);
   for (let i = 0; i < original.byteLength; i++) {

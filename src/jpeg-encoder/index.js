@@ -1,24 +1,24 @@
 import { assert } from "../assert.js";
-import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
+import { JpegChannel } from "../jpeg-channel.js";
 import * as bits from "../bits-manipulation.js";
 
 // import lazily/on-demand using webpack
 async function importEncoderByEnv(typ) {
   switch (typ) {
-    case WeiboJpegEncoder.jpegjsEncoder:
+    case JpegEncoder.jpegjsEncoder:
       return await import(/* webpackPrefetch: true */"./jpegjs-encoder.js");
-    case WeiboJpegEncoder.wasmEncoder:
+    case JpegEncoder.wasmEncoder:
       return await import("./wasm-encoder.js");
     default:
       throw new Error(`Unknown encoder: ${typ}`);
   }
 }
 
-export default class WeiboJpegEncoder extends WeiboJpegChannel {
+export default class JpegEncoder extends JpegChannel {
   static jpegjsEncoder = Symbol("jpegjsEncoder");
   static wasmEncoder = Symbol("wasmEncoder");
 
-  constructor(usedBits, encoderType = WeiboJpegEncoder.jpegjsEncoder) {
+  constructor(usedBits, encoderType = JpegEncoder.jpegjsEncoder) {
     super(usedBits);
     this.encoderType = encoderType;
     console.log("User encoder:", this.encoderType);
@@ -47,7 +47,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
     console.log("target image width: ", width);
 
     // I don't know why jpegjs can't work with 3 channels...
-    const channels = this.encoderType === WeiboJpegEncoder.jpegjsEncoder ? 4 : 3;
+    const channels = this.encoderType === JpegEncoder.jpegjsEncoder ? 4 : 3;
     const targetImageData = new Uint8ClampedArray(width * width * channels);
 
     let counter = 0;
@@ -65,7 +65,7 @@ export default class WeiboJpegEncoder extends WeiboJpegChannel {
       targetImageData[counter++] = nextByte; // r
       targetImageData[counter++] = nextByte; // g
       targetImageData[counter++] = nextByte; // b
-      if (this.encoderType === WeiboJpegEncoder.jpegjsEncoder) {
+      if (this.encoderType === JpegEncoder.jpegjsEncoder) {
         targetImageData[counter++] = 255;    // a
       }
     });

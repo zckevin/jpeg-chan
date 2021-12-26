@@ -1,7 +1,6 @@
 import fs from "fs"
-import WeiboJpegEncoder from "../weibo-jpeg-encoder/index.js";
+import JpegEncoder from "../jpeg-encoder/index.js";
 import jpegjs from "../jpeg-js/index.js";
-import { assert } from "../assert.js";
 
 export class BasicSink {
   constructor(usedBitsN) {
@@ -34,7 +33,7 @@ export class BasicSink {
    * @returns {Array<string>}
    */
   async Upload(buf, options = {}) {
-    const enc = new WeiboJpegEncoder(this.usedBitsN, WeiboJpegEncoder.jpegjsEncoder);
+    const enc = new JpegEncoder(this.usedBitsN, JpegEncoder.jpegjsEncoder);
     if (options["photoMaskFile"]) {
       this.usePhotoAsMask(enc, options["photoMaskFile"]);
     }

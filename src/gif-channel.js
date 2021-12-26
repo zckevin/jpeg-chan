@@ -8,7 +8,7 @@ const weiboCookies = require("./cookies");
 
 const GIF_FILE_BLOB = fs.readFileSync("./image_templates/foo.gif");
 
-class WeiboGifChannel {
+class GifChannel {
   constructor() {}
 
   write(buf) {
@@ -50,7 +50,7 @@ class WeiboGifChannel {
 }
 
 async function run() {
-  const ch = new WeiboGifChannel();
+  const ch = new GifChannel();
   const n = parseInt(process.argv[2]) || 1024;
   randomBytes(n).then(async (buf) => {
     console.time("GIF rtt");
@@ -66,4 +66,4 @@ async function run() {
 }
 run();
 
-module.exports = WeiboGifChannel;
+module.exports = GifChannel;

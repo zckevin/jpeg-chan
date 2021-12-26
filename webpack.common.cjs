@@ -3,7 +3,7 @@ const webpack = require("webpack");
 
 const indexConfig = {
   target: "web",
-  entry: "./src/weibo-jpeg-decoder/index.js",
+  entry: "./src/jpeg-decoder/index.js",
   output: {
     library: "weibo_jpeg_decoder",
     path: path.resolve(__dirname, "dist"),

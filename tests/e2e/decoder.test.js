@@ -1,5 +1,5 @@
-import * as jpegjsDecoder from "../../src/weibo-jpeg-decoder/jpegjs-decoder.js";
-import * as browserDecoder from "../../src/weibo-jpeg-decoder/browser-decoder.js";
+import * as jpegjsDecoder from "../../src/jpeg-decoder/jpegjs-decoder.js";
+import * as browserDecoder from "../../src/jpeg-decoder/browser-decoder.js";
 
 import loadJpegForTesting from "./load-jpeg.js";
 const IMAGE_FILE = loadJpegForTesting();

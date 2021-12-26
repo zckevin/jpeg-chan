@@ -1,23 +1,24 @@
 import * as bits from "../bits-manipulation.js";
-import { WeiboJpegChannel } from "../weibo-jpeg-channel.js";
-
+import { JpegChannel } from "../jpeg-channel.js";
+import * as browserDecoder from "./browser-decoder.js";
 import { isBrowser } from "browser-or-node";
 
 // import lazily/on-demand using webpack
 async function importDecoderByEnv(decoderType) {
   switch (decoderType) {
-    case WeiboJpegDecoder.browserDecoder:
-      return await import(/* webpackPrefetch: true */"./browser-decoder.js");
-    case WeiboJpegDecoder.jpegjsDecoder:
+    case JpegDecoder.browserDecoder:
+      // return await import(/* webpackPrefetch: true */"./browser-decoder.js");
+      return browserDecoder;
+    case JpegDecoder.jpegjsDecoder:
       return await import("./jpegjs-decoder.js");
-    case WeiboJpegDecoder.wasmDecoder:
+    case JpegDecoder.wasmDecoder:
       return await import("./wasm-decoder.js");
     default:
       throw new Error(`Unknown decoder: ${decoderType}`);
   }
 }
 
-export default class WeiboJpegDecoder extends WeiboJpegChannel {
+export default class JpegDecoder extends JpegChannel {
   static browserDecoder = Symbol("browserDecoder");
   static jpegjsDecoder = Symbol("jpegjsDecoder");
   static wasmDecoder = Symbol("wasmDecoder");
@@ -33,7 +34,7 @@ export default class WeiboJpegDecoder extends WeiboJpegChannel {
       this.decoderType = decoderType;
     } else {
       this.decoderType = isBrowser ? 
-        WeiboJpegDecoder.browserDecoder : WeiboJpegDecoder.jpegjsDecoder;
+        JpegDecoder.browserDecoder : JpegDecoder.jpegjsDecoder;
     }
     console.log("User decoder:", this.decoderType);
   }

@@ -1,4 +1,4 @@
-const { merge } = require('webpack-merge');
+const merge = require('webpack-merge');
 const configs = require('./webpack.common.cjs');
 const TerserPlugin = require("terser-webpack-plugin");
 

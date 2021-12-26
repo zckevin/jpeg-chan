@@ -1,14 +1,14 @@
 import { assert, assertNotReached } from "./assert.js";
 import { UsedBits } from "./bits-manipulation.js"
 
-export class WeiboJpegChannel {
+export class JpegChannel {
   constructor(usedBits) {
     if (typeof usedBits == "number") {
       assert(usedBits <= 8 && usedBits >= 1, "usedBitsN should be between 1 and 8");
       if (usedBits > 6) {
         console.warn(`Set usedBitsN > 6 is not gonna work in most situations.`)
       }
-      this.mask = WeiboJpegChannel.getMask(usedBits);
+      this.mask = JpegChannel.getMask(usedBits);
       this.usedBits = new UsedBits(1, usedBits);
     } else if (usedBits instanceof UsedBits) {
       this.usedBits = usedBits;
