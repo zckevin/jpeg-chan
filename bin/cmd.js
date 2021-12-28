@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { randomBytesArray } from "../src/utils.js";
 import { WeiboSink } from '../src/sinks/weibo.js';
 import { BilibiliSink } from '../src/sinks/bilibili.js';
-import JpegDecoder from "../src/jpeg-decoder/index.js";
+import { JpegDecoder } from "../src/jpeg-decoder/index.js";
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "console";
 
@@ -41,9 +41,15 @@ const program = new Command();
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
+  .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
   .action(async (filePath, usedBits) => {
     console.log(filePath, usedBits)
-    await upload(fs.readFileSync(filePath), usedBits);
+
+    const args = usedBits.split("-");
+    assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
+    usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
+
+    await upload(fs.readFileSync(filePath), usedBits, {});
   });
 
 program

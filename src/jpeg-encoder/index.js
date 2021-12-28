@@ -14,7 +14,7 @@ async function importEncoderByEnv(typ) {
   }
 }
 
-export default class JpegEncoder extends JpegChannel {
+export class JpegEncoder extends JpegChannel {
   static jpegjsEncoder = Symbol("jpegjsEncoder");
   static wasmEncoder = Symbol("wasmEncoder");
 

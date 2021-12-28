@@ -1,5 +1,5 @@
-import JpegEncoder from "../../src/jpeg-encoder/";
-import JpegDecoder from "../../src/jpeg-decoder/";
+import { JpegEncoder } from "../../src/jpeg-encoder/";
+import { JpegDecoder } from "../../src/jpeg-decoder/";
 import { UsedBits } from '../../src/bits-manipulation.js';
 import { randomBytesArray } from "../../src/utils.js";
 

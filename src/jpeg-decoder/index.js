@@ -18,7 +18,7 @@ async function importDecoderByEnv(decoderType) {
   }
 }
 
-export default class JpegDecoder extends JpegChannel {
+export class JpegDecoder extends JpegChannel {
   static browserDecoder = Symbol("browserDecoder");
   static jpegjsDecoder = Symbol("jpegjsDecoder");
   static wasmDecoder = Symbol("wasmDecoder");
@@ -50,3 +50,5 @@ export default class JpegDecoder extends JpegChannel {
     return bits.deserialize(chromaComponent, this.usedBits, n).buffer;
   }
 }
+
+export const UsedBits = bits.UsedBits;

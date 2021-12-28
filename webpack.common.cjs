@@ -5,9 +5,10 @@ const indexConfig = {
   target: "web",
   entry: "./src/jpeg-decoder/index.js",
   output: {
-    library: "weibo_jpeg_decoder",
+    library: "jpeg_decoder",
     path: path.resolve(__dirname, "dist"),
-    filename: "decoder.js",
+    publicPath: '',
+    filename: "jpeg-decoder.js",
   },
   module: {},
   plugins: [],

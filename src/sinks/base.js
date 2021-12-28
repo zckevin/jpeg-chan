@@ -1,5 +1,5 @@
 import fs from "fs"
-import JpegEncoder from "../jpeg-encoder/index.js";
+import { JpegEncoder } from "../jpeg-encoder/index.js";
 import jpegjs from "../jpeg-js/index.js";
 
 export class BasicSink {

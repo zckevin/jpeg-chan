@@ -4,6 +4,10 @@
   "author": "Cong Zuo",
   "license": "MIT",
   "type": "module",
+  "main": "dist/jpeg-decoder.js",
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@saschazar/wasm-image-loader": "^4.0.0",
     "@saschazar/wasm-mozjpeg": "^3.0.0",

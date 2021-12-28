@@ -1,5 +1,5 @@
-import JpegEncoder from "../../src/jpeg-encoder/index.js";
-import JpegDecoder from "../../src/jpeg-decoder/index.js";
+import { JpegEncoder } from "../../src/jpeg-encoder/index.js";
+import { JpegDecoder } from "../../src/jpeg-decoder/index.js";
 import { randomBytesArray } from "../../src/utils.js";
 
 describe("Check JPEG encoders", () => {
