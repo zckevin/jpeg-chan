@@ -1,0 +1,11 @@
+{
+  "name": "@zckevin/jpeg-channel-browser-decoder",
+  "version": "0.0.1",
+  "author": "Cong Zuo",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/jpeg-decoder.js",
+  "files": [
+    "dist"
+  ]
+}

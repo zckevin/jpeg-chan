@@ -1,24 +1,4 @@
-const path = require("path");
-const webpack = require("webpack");
+const browserDecoderConfig = require("./packages/jpeg-channel-browser-decoder/webpack.common.cjs");
+const fullConfig = require("./packages/jpeg-channel-full/webpack.common.cjs");
 
-const indexConfig = {
-  target: "web",
-  entry: "./src/jpeg-decoder/index.js",
-  output: {
-    library: "jpeg_decoder",
-    path: path.resolve(__dirname, "dist"),
-    publicPath: '',
-    filename: "jpeg-decoder.js",
-  },
-  module: {},
-  plugins: [],
-  resolve: {
-    fallback: {
-      fs: false,
-      path: false,
-      assert: false,
-    }
-  },
-};
-
-module.exports = [indexConfig];
+module.exports = [fullConfig, browserDecoderConfig];

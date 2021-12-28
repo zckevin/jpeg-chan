@@ -51,4 +51,5 @@ export class JpegDecoder extends JpegChannel {
   }
 }
 
+// TODO: remove this export
 export const UsedBits = bits.UsedBits;
