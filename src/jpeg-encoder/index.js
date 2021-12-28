@@ -30,7 +30,12 @@ export class JpegEncoder extends JpegChannel {
    */
   cacluateSquareImageWidth(byteLength) {
     assert(byteLength > 0, "byteLength should be greater than 0");
-    return Math.ceil(Math.sqrt(byteLength));
+    // Bilibili demands image width larger than 10.
+    const min_width = 10;
+    return Math.max(
+      Math.ceil(Math.sqrt(byteLength)),
+      min_width
+    );
   }
 
   setPhotoAsMaskFn(fn) {
