@@ -10,6 +10,10 @@ function forceNewFrameInChrome() {
   document.body.append(el);
 }
 
+function debugPrintPerformance(entry) {
+  console.log(entry.name, entry.duration);
+}
+
 async function decodeJpegInBrowser(ab) {
   const perfMarkerJpegDecode = utils.randomString();
   const perfMarkerJpegCanvas = utils.randomString();
@@ -21,13 +25,15 @@ async function decodeJpegInBrowser(ab) {
 
   const img = new Image();
   img.src = imageBlobUrl;
-  img.decoding = "sync"; // actually does not make any difference...
+  img.decoding = "sync"; // Does not make any difference...
   img.onload = () => {
     forceNewFrameInChrome();
     performance.mark(perfMarkerJpegDecode);
   };
   await img.decode();
-  performance.measure("browserDecoder:jpeg decode", perfMarkerJpegDecode);
+  debugPrintPerformance(
+    performance.measure("browserDecoder:jpeg decode", perfMarkerJpegDecode)
+  );
 
   performance.mark(perfMarkerJpegCanvas);
   const {width, height} = img;
@@ -40,7 +46,10 @@ async function decodeJpegInBrowser(ab) {
   }
   ctx.drawImage(img, 0, 0);
   const imageData = ctx.getImageData(0, 0, width, height);
-  performance.measure("browserDecoder:jpeg canvas", perfMarkerJpegCanvas);
+  debugPrintPerformance(
+    performance.measure("browserDecoder:jpeg canvas", perfMarkerJpegCanvas)
+  );
+
   return imageData.data;
 }
 
