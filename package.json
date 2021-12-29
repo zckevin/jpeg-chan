@@ -32,9 +32,10 @@
     "webpack-merge": "^4.2.2"
   },
   "scripts": {
-    "dev": "webpack --config ./webpack.dev.cjs",
+    "dev": "webpack --watch --config ./webpack.dev.cjs",
     "build": "webpack --config ./webpack.prod.cjs",
     "e2e": "karma start ./karma.config.cjs",
-    "jest": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "jest": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "e2e-headless": "karma start ./karma.config.cjs --headless"
   }
 }

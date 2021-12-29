@@ -23,4 +23,4 @@ jobs:
     - run: git submodule sync --recursive
     - run: npm ci
     - run: npm run jest
-    - run: npm run e2e
+    - run: npm run e2e-headless

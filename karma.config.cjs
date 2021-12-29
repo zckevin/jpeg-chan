@@ -1,5 +1,6 @@
 const path = require("path");
 const os = require("os");
+const process = require("process");
 
 const output = {
   path: path.join(os.tmpdir(), '_karma_webpack_') + Math.floor(Math.random() * 1000000),
@@ -26,6 +27,8 @@ const webpackConfig = {
 };
 
 module.exports = function (config) {
+  let headless = (process.argv.indexOf("--headless") !== -1);
+
   config.set({
     plugins: [
       "karma-webpack",
@@ -33,8 +36,7 @@ module.exports = function (config) {
       "karma-chrome-launcher",
     ],
 
-    browsers: ["ChromeHeadless"],
-    // browsers: ["Chrome"],
+    browsers: headless ? ["ChromeHeadless"] : ["Chrome"],
 
     // base path that will be used to resolve all patterns (eg. files, exclude)
     basePath: "",
@@ -47,7 +49,7 @@ module.exports = function (config) {
 
     // exit on test finish, if set to false, karma will watch for changes and rerun tests
     // default value is false
-    singleRun: true,
+    singleRun: headless ? true : false,
 
     // list of files / patterns to load in the browser
     files: [
