@@ -3,9 +3,9 @@ import { JpegEncoder } from "../jpeg-encoder/index.js";
 import jpegjs from "../jpeg-js/index.js";
 
 export class BasicSink {
-  constructor(usedBitsN) {
-    console.log("UsedBitsN: ", usedBitsN);
-    this.usedBitsN = usedBitsN;
+  constructor(usedBits) {
+    console.log("UsedBits: ", usedBits);
+    this.usedBits = usedBits;
   }
 
   usePhotoAsMask(encoder, photoMaskFile) {
@@ -33,7 +33,7 @@ export class BasicSink {
    * @returns {Array<string>}
    */
   async Upload(buf, options = {}) {
-    const enc = new JpegEncoder(this.usedBitsN, JpegEncoder.jpegjsEncoder);
+    const enc = new JpegEncoder(this.usedBits, JpegEncoder.jpegjsEncoder);
     if (options["photoMaskFile"]) {
       this.usePhotoAsMask(enc, options["photoMaskFile"]);
     }

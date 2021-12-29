@@ -6,6 +6,7 @@ import * as dotenv from "dotenv";
 import FormData from "form-data";
 import http from "http";
 import { BasicSink } from "./base.js";
+import { UsedBits } from "../bits-manipulation.js";
 
 dotenv.config();
 
@@ -62,8 +63,8 @@ async function upload(ab) {
 
 
 export class BilibiliSink extends BasicSink {
-  constructor(usedBitsN = 6) {
-    super(usedBitsN);
+  constructor(usedBits = new UsedBits(1, 6)) {
+    super(usedBits);
   }
 
   async doUpload(ab, options) {
