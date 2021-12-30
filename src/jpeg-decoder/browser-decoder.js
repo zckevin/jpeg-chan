@@ -53,11 +53,6 @@ async function decodeJpegInBrowser(ab) {
   return imageData.data;
 }
 
-// https://stackoverflow.com/a/14697130/671376
-function RGB2Y(r, g, b) {
-  return ((19595 * r + 38470 * g + 7471 * b ) >> 16);
-}
-
 /**
  * @param {ArrayBuffer} ab
  * @param {number} width
@@ -75,7 +70,7 @@ export async function getJpegChromaComponent(ab, width, height) {
     const g = data[4 * i + 1];
     const b = data[4 * i + 2];
     const a = data[4 * i + 3];
-    chromaComponent[i] = RGB2Y(r, g, b);
+    chromaComponent[i] = utils.RGB2Y(r, g, b);
   }
   return chromaComponent;
 }

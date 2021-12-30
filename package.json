@@ -16,6 +16,7 @@
     "debug": "^4.3.2",
     "dotenv": "^10.0.0",
     "form-data": "^3.0.1",
+    "nanojpeg-wasm": "^0.0.2",
     "node-fetch": "^3.1.0"
   },
   "devDependencies": {
@@ -36,6 +37,7 @@
     "build": "webpack --config ./webpack.prod.cjs",
     "e2e": "karma start ./karma.config.cjs",
     "jest": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "e2e-headless": "karma start ./karma.config.cjs --headless"
+    "e2e-headless": "karma start ./karma.config.cjs --headless",
+    "perf": "karma start ./karma.config.cjs --perf"
   }
 }

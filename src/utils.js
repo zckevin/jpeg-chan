@@ -29,59 +29,6 @@ export function randomBytesArray(n) {
   return arr;
 }
 
-export function getUntilNull(next) {
-  let arr = [];
-  let counter = 0;
-  while (true) {
-    let val = next();
-    if (val == null) break;
-    arr.push(val);
-    counter += 1;
-    if (counter > 10000) {
-      console.trace();
-      assert.strictEqual(false, true, "getUntilNull: found dead loop.");
-    }
-  }
-  return arr;
-}
-
-export function drainN(nextByteFn, n) {
-  const result = [];
-  let counter = 0;
-  while (true) {
-    if (counter >= n) {
-      break;
-    }
-    const byte = nextByteFn();
-    if (byte == null) break;
-    result.push(byte);
-    counter += 1;
-  }
-  return result;
-}
-
-/**
- * @param {Iterator} iter 
- * @param {Number} n 
- * @returns {Uint8ClampedArray}
- */
-export function drainNBytes(iter, n) {
-  // TODO: assert(n > 0);
-  const result = new Uint8ClampedArray(n);
-  let counter = 0;
-
-  let item = iter.next();
-  while (!item.done && counter < n) {
-    result[counter++] = item.value;
-    item = iter.next();
-  }
-
-  if (counter < n) {
-    throw new Error("short read");
-  }
-  return result;
-}
-
 const convert = {
   bin2dec: (s) => {
     assert.strictEqual(
@@ -112,4 +59,9 @@ export function debugPrint(arr, format) {
     s.push(format(b));
   });
   console.log(s.join(" "));
+}
+
+// https://stackoverflow.com/a/14697130/671376
+export function RGB2Y(r, g, b) {
+  return ((19595 * r + 38470 * g + 7471 * b ) >> 16);
 }
