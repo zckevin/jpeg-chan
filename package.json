@@ -17,7 +17,7 @@
     "dotenv": "^10.0.0",
     "form-data": "^3.0.1",
     "nanojpeg-wasm": "^0.0.2",
-    "node-fetch": "^3.1.0"
+    "node-fetch": "^3.1.1"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^10.2.0",
