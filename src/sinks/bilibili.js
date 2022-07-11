@@ -4,7 +4,7 @@
 
 import * as dotenv from "dotenv";
 import FormData from "form-data";
-import http from "http";
+import https from "https";
 import { BasicSink } from "./base.js";
 import { UsedBits } from "../bits-manipulation.js";
 
@@ -32,7 +32,7 @@ async function upload(ab) {
   headers.Cookie = `SESSDATA=${SESSDATA}`;
 
   return new Promise((resolve, reject) => {
-    const req = http.request({
+    const req = https.request({
       method: 'post',
       host: 'api.vc.bilibili.com',
       path: '/api/v1/drawImage/upload',
