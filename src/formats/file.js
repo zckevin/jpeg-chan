@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { assert } from "../assert.js";
 import { BilibiliSink } from "../sinks/bilibili.js";
 import { UsedBits } from "../bits-manipulation.js";
+import { Tasker } from "../tasker.v2.js";
 
 const BOOTLOADER_APPROXIMATELY_SIZE = 256;
 
@@ -41,10 +42,10 @@ class BaseFile {
     return pbClass.encode(pbClass.create(pb)).finish();
   }
 
-  async upload(pb, config = {}) {
+  async upload(pb, options = {}) {
     assert(this.pbClass);
     const buf = this.encodePb(this.pbClass, pb)
-    const url = await this.sink.Upload(buf, { ...config, validate: true });
+    const url = await this.sink.Upload(buf, { ...options, validate: true });
     return {
       size: buf.byteLength,
       url,
@@ -52,10 +53,10 @@ class BaseFile {
     }
   }
 
-  async download(fileChunk) {
+  async download(fileChunk, options = {}) {
     // assert(typeof fileChunk === PbFileChunk)
     assert(this.pbClass);
-    const buf = await this.sink.Download(fileChunk.url, fileChunk.size)
+    const buf = await this.sink.Download(fileChunk.url, fileChunk.size, options)
     return this.pbClass.decode(buf);
   }
 }
@@ -83,11 +84,18 @@ class IndexFile extends BaseFile {
   }
 
   async Create(indexFileChunk) {
-    const indexFileConfig = await this.download(indexFileChunk);
-    console.log("IndexFile config", indexFileConfig);
-    // const chunkBuffers = indexFileConfig.chunks.map(chunk => {
-    //   await this.download(indexFileChunk)
-    // });
+    const indexFile = await this.download(indexFileChunk);
+    console.log("IndexFile", indexFile);
+    const tasks = indexFile.chunks.map(chunk => async () => {
+      return await this.sink.Download(chunk.url, chunk.size);
+    });
+    const tasker = new Tasker(tasks, 10);
+    await tasker.done;
+    console.log(tasker.results);
+
+    const hash = crypto.createHash("md5");
+    hash.update(Buffer.concat(tasker.results));
+    console.log(hash.digest("hex"));
   }
 }
 
@@ -104,10 +112,11 @@ class BootloaderFile extends BaseFile {
   //   this.configObj.padding = crypto.randomBytes(paddingLength);
   // }
 
-  async genDescription(fileSize, chunkSize, indexFile, aesKey, aesIV) {
+  async genDescription(fileSize, chunkSize, fileName, indexFile, aesKey, aesIV) {
     const blFileconfig = {
       fileSize,
       chunkSize,
+      fileName,
       indexFile,
       aesKey,
       aesIV,
@@ -122,12 +131,12 @@ class BootloaderFile extends BaseFile {
   }
 
   async Create(blFileChunk) {
-    const blFileConfig = await this.download(blFileChunk);
-    console.log("BootloaderFile config", blFileConfig);
-  }
-
-  async loadIndexFiles() {
-
+    const blFile = await this.download(blFileChunk, { noEncryption: true });
+    console.log("BootloaderFile config", blFile);
+    this.sink.key = blFile.aesKey;
+    this.sink.iv = blFile.aesIV;
+    const indexFile = new IndexFile(this.sink);
+    await indexFile.Create(blFile.indexFile);
   }
 }
 
@@ -142,6 +151,7 @@ export class File {
     }
     this.fileSize = fileSize;
     this.chunkSize = chunkSize;
+    this.fileName = path.parse(filePath).base;
     this.fd = fs.openSync(filePath, "r");
 
     this.n_chunks = Math.ceil(fileSize / chunkSize);
@@ -200,6 +210,7 @@ export class File {
     const descHex = await bootloaderFile.genDescription(
       this.fileSize,
       this.chunkSize,
+      this.fileName,
       indexFileChunk,
       this.aesKey,
       this.aesIV,
@@ -220,13 +231,8 @@ export class DownloadFile {
   }
 
   async test() {
-    const buf = await this.sink.Download(
-      this.desc.bootloaderFile.url,
-      this.desc.bootloaderFile.size,
-      { noEncryption: true }
-    );
-    const bootloaderFile = PbBootloaderFile.decode(buf);
-    console.log(bootloaderFile)
+    const blFile = new BootloaderFile(this.sink);
+    await blFile.Create(this.desc.bootloaderFile)
   }
 
   async downloadWorker() {

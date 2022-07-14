@@ -16,9 +16,10 @@ message IndexFile {
 message BootloaderFile {
     required uint32 fileSize = 1;
     required uint32 chunkSize = 2;
-    required FileChunk indexFile = 3;
+    required string fileName = 3;
     required bytes aesKey = 4;
     required bytes aesIV = 5;
+    required FileChunk indexFile = 6;
 }
 
 message BootloaderDescription {
