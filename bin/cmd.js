@@ -1,15 +1,16 @@
 import * as fs from "fs"
 import fetch from 'node-fetch';
 import { Command } from 'commander';
+import crypto from 'crypto';
+
 import { randomBytesArray } from "../src/utils.js";
 import { WeiboSink } from '../src/sinks/weibo.js';
 import { BilibiliSink } from '../src/sinks/bilibili.js';
 import { JpegDecoder } from "../src/jpeg-decoder/index.js";
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "../src/assert.js";
-import crypto from 'crypto';
-
-import { uploadLargeFile, loadFileFromIndex } from "../src/upload-large-file.js";
+import { DownloadFile, UploadFile } from "../src/file.js"
+import { pbFactory } from "../src/formats/pb.js";
 
 function parseChunkSize(size) {
   let n;
@@ -78,19 +79,19 @@ function tryUploadUntilFailed(bufLen, usedBits, options) {
 }
 
 const program = new Command();
-program
-  .command('upload')
-  .argument('<filePath>', 'upload file', String)
-  .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-  .action(async (filePath, usedBits) => {
-    console.log(filePath, usedBits)
-
-    const args = usedBits.split("-");
-    assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
-    usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
-
-    await upload(fs.readFileSync(filePath), usedBits, {});
-  });
+// program
+//   .command('upload')
+//   .argument('<filePath>', 'upload file', String)
+//   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
+//   .action(async (filePath, usedBits) => {
+//     console.log(filePath, usedBits)
+// 
+//     const args = usedBits.split("-");
+//     assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
+//     usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
+// 
+//     await upload(fs.readFileSync(filePath), usedBits, {});
+//   });
 
 program
   .command('test')
@@ -133,20 +134,24 @@ program
   });
 
 program
-  .command('uploadLargeFile')
+  .command('upload')
   .argument('<filePath>', 'upload file', String)
   .argument('<chunkSize>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .action(async (filePath, chunkSize) => {
-    await uploadLargeFile(filePath, parseChunkSize(chunkSize))
+    await pbFactory.initPb();
+    const f = new UploadFile(filePath, parseChunkSize(chunkSize));
+    const descHex = await f.GenerateDescription()
+    console.log(descHex);
   });
 
 program
-  .command('loadFileFromIndex')
-  .argument('<filePath>', 'upload file', String)
-  .argument('<indexfilePath>', 'index file', String)
-  .argument('<chunkSize>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
-  .action(async (filePath, indexFilePath, chunkSize) => {
-    await loadFileFromIndex(filePath, indexFilePath, parseChunkSize(chunkSize))
+  .command('download')
+  .argument('<desc>', 'desc hex string', String)
+  .option('-o, --output <outputFilePath>', 'the download file path')
+  .action(async (desc, options) => {
+    await pbFactory.initPb();
+    const f = new DownloadFile(desc)
+    await f.Download(options.outputFilePath);
   });
 
 program.parse(process.argv);

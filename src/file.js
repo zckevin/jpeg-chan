@@ -1,30 +1,13 @@
-import protobufjs from "protobufjs";
-import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from "fs";
 import crypto from 'crypto';
-import { assert } from "../assert.js";
-import { BilibiliSink } from "../sinks/bilibili.js";
-import { UsedBits } from "../bits-manipulation.js";
-import { Tasker } from "../tasker.v2.js";
+import { assert } from "./assert.js";
+import { BilibiliSink } from "./sinks/bilibili.js";
+import { UsedBits } from "./bits-manipulation.js";
+import { Tasker } from "./tasker.v2.js";
+import { pbFactory } from "./formats/pb.js";
 
-const BOOTLOADER_APPROXIMATELY_SIZE = 256;
-
-let PbBootloaderDescription;
-let PbBootloaderFile;
-let PbIndexFile;
-let PbFileChunk;
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-protobufjs.load(path.join(__dirname, "jpegFile.proto"), (err, root) => {
-  if (err)
-    throw err;
-
-  PbBootloaderDescription = root.lookupType("BootloaderDescription");
-  PbBootloaderFile = root.lookupType("BootloaderFile");
-  PbIndexFile = root.lookupType("IndexFile");
-  PbFileChunk = root.lookupType("FileChunk");
-});
+// const BOOTLOADER_APPROXIMATELY_SIZE = 256;
 
 class BaseFile {
   constructor(sink) {
@@ -54,7 +37,7 @@ class BaseFile {
   }
 
   async download(fileChunk, options = {}) {
-    // assert(typeof fileChunk === PbFileChunk)
+    // assert(typeof fileChunk === pbFactory.PbFileChunk)
     assert(this.pbClass);
     const buf = await this.sink.Download(fileChunk.url, fileChunk.size, options)
     return this.pbClass.decode(buf);
@@ -64,13 +47,13 @@ class BaseFile {
 class IndexFile extends BaseFile {
   constructor(sink) {
     super(sink);
-    this.pbClass = PbIndexFile;
+    this.pbClass = pbFactory.PbIndexFile;
   }
 
   async GenFileChunk(fileChunkObjs) {
     const chunks = fileChunkObjs.map(obj => {
-      assert(!PbFileChunk.verify(obj));
-      return PbFileChunk.create(obj);
+      assert(!pbFactory.PbFileChunk.verify(obj));
+      return pbFactory.PbFileChunk.create(obj);
     });
     const config = {
       ended: true,
@@ -78,12 +61,12 @@ class IndexFile extends BaseFile {
     };
     console.log(config)
     const fileChunk = await this.upload(config);
-    assert(!PbFileChunk.verify(fileChunk));
+    assert(!pbFactory.PbFileChunk.verify(fileChunk));
     console.log("indexFile fileChunk", fileChunk);
-    return PbFileChunk.create(fileChunk);
+    return pbFactory.PbFileChunk.create(fileChunk);
   }
 
-  async CreateFromFileChunk(indexFileChunk) {
+  async Download(indexFileChunk) {
     const indexFile = await this.download(indexFileChunk);
     console.log("IndexFile", indexFile);
     const tasks = indexFile.chunks.map(chunk => async () => {
@@ -93,16 +76,18 @@ class IndexFile extends BaseFile {
     await downloadTasker.done;
     console.log(downloadTasker.results);
 
+    const fileBuf = Buffer.concat(downloadTasker.results);
     const hash = crypto.createHash("md5");
-    hash.update(Buffer.concat(downloadTasker.results));
+    hash.update(fileBuf);
     console.log(hash.digest("hex"));
+    return fileBuf;
   }
 }
 
 class BootloaderFile extends BaseFile {
   constructor(sink) {
     super(sink);
-    this.pbClass = PbBootloaderFile;
+    this.pbClass = pbFactory.PbBootloaderFile;
   }
 
   // addPadding() {
@@ -126,21 +111,22 @@ class BootloaderFile extends BaseFile {
       bootloaderFile,
     }
     console.log("bootloaderDesc config", blDescConfig)
-    const descBuf = this.encodePb(PbBootloaderDescription, blDescConfig);
+    const descBuf = this.encodePb(pbFactory.PbBootloaderDescription, blDescConfig);
     return descBuf.toString('hex');
   }
 
-  async CreateFromFileChunk(blFileChunk) {
+  async Download(blFileChunk) {
     const blFile = await this.download(blFileChunk, { noEncryption: true });
     console.log("BootloaderFile config", blFile);
+    this.blFile = blFile;
     this.sink.key = blFile.aesKey;
     this.sink.iv = blFile.aesIV;
     const indexFile = new IndexFile(this.sink);
-    await indexFile.CreateFromFileChunk(blFile.indexFile);
+    return await indexFile.Download(blFile.indexFile);
   }
 }
 
-export class File {
+export class UploadFile {
   constructor(filePath, chunkSize) {
     assert(chunkSize > 0);
 
@@ -202,7 +188,6 @@ export class File {
       this.aesKey,
       this.aesIV,
     );
-    console.log(descHex)
     return descHex;
   }
 }
@@ -210,15 +195,19 @@ export class File {
 export class DownloadFile {
   constructor(descHex) {
     const buf = Buffer.from(descHex, "hex");
-    const desc = PbBootloaderDescription.decode(buf);
-    this.desc = desc;
+    this.desc = pbFactory.PbBootloaderDescription.decode(buf);
     this.sink = new BilibiliSink(
-      new UsedBits(desc.bootloaderFile.usedBits),
+      new UsedBits(this.desc.bootloaderFile.usedBits),
     );
   }
 
-  async test() {
+  async Download(outputFilePath) {
     const blFile = new BootloaderFile(this.sink);
-    await blFile.CreateFromFileChunk(this.desc.bootloaderFile)
+    const fileBuf = await blFile.Download(this.desc.bootloaderFile);
+    if (!outputFilePath) {
+      console.log(this.desc.bootloaderFile)
+      outputFilePath = path.join("/tmp", blFile.blFile.fileName);
+    }
+    fs.writeFileSync(outputFilePath, fileBuf);
   }
 }
