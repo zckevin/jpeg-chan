@@ -12,6 +12,33 @@ const AES_GCM_AUTH_TAG_LENGTH = 16;
 export class BasicSink {
   constructor() {
     this.MIN_UPLOAD_BUFFER_SIZE = 0;
+
+    this.cachedEncoders = new Map();
+    this.cachedDecoders = new Map();
+  }
+
+  getEncoder(usedBits, encoderType) {
+    let enc;
+    const key = `${usedBits}-${encoderType.toString()}`;
+    if (this.cachedEncoders.has(key)) {
+      enc = this.cachedEncoders.get(key);
+    } else {
+      enc = new JpegEncoder(usedBits, encoderType);
+      this.cachedEncoders.set(key, enc);
+    }
+    return enc;
+  }
+
+  getDecoder(usedBits, decoderType) {
+    let dec;
+    const key = `${usedBits}-${decoderType.toString()}`;
+    if (this.cachedDecoders.has(key)) {
+      dec = this.cachedDecoders.get(key);
+    } else {
+      dec = new JpegDecoder(usedBits, decoderType);
+      this.cachedDecoders.set(key, dec);
+    }
+    return dec;
   }
 
   usePhotoAsMask(encoder, photoMaskFile) {
@@ -80,7 +107,7 @@ export class BasicSink {
    * @returns {string}
    */
   async Upload(original, config) {
-    const enc = new JpegEncoder(
+    const enc = this.getEncoder(
       config.usedBits || this.DEFAULT_USED_BITS,
       config.encoder || JpegEncoder.jpegjsEncoder,
     );
@@ -107,7 +134,7 @@ export class BasicSink {
    */
   async Download(url, size, config) {
     const ab = await fetch(url).then(res => res.arrayBuffer());
-    const dec = new JpegDecoder(
+    const dec = this.getDecoder(
       config.usedBits || this.DEFAULT_USED_BITS,
       config.decoder || JpegDecoder.wasmDecoder
     );

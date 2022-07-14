@@ -22,7 +22,7 @@ export class JpegEncoder extends JpegChannel {
     super(usedBits);
     this.encoderType = encoderType;
     this.n_channels = 1;
-    console.log("User encoder:", this.encoderType);
+    console.log("Use encoder:", this.encoderType);
   }
 
   /**
