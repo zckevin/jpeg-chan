@@ -1,0 +1,27 @@
+syntax = "proto2";
+
+message FileChunk {
+    required uint32 size = 1;
+    required string url = 2;
+    required string usedBits = 3;
+}
+
+message IndexFile {
+    // linked list
+    required bool ended = 1;
+    optional FileChunk next = 2;
+    repeated FileChunk chunks = 3;
+}
+
+message BootloaderFile {
+    required uint32 fileSize = 1;
+    required uint32 chunkSize = 2;
+    required FileChunk indexFile = 3;
+    required bytes aesKey = 4;
+    required bytes aesIV = 5;
+}
+
+message BootloaderDescription {
+    required FileChunk bootloaderFile = 1;
+    optional bytes key = 2;
+}

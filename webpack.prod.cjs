@@ -18,13 +18,18 @@ const terserOptions = {
   safari10: false,
 };
 
-module.exports = configs.map((config) =>
-  merge(config, {
+module.exports = configs.map((config) => {
+  // add min to output filename
+  const tmp = config.output.filename.split(".");
+  tmp.splice(-1, 0, "min");
+  config.output.filename = tmp.join(".");
+
+  return merge(config, {
     mode: 'production',
     optimization: {
       minimize: true,
       minimizer: [new TerserPlugin({ terserOptions })],
     },
   })
-);
+});
 

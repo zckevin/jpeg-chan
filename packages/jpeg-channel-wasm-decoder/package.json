@@ -1,11 +1,10 @@
 {
-  "name": "@zckevin/jpeg-channel-wasm-decoder",
+  "name": "@zckevin/jpeg-channel-wasm",
   "version": "0.0.1",
-  "author": "Cong Zuo",
   "license": "MIT",
   "type": "module",
-  "main": "dist/jpeg-decoder.js",
+  "main": "dist/jpeg-decoder.min.js",
   "files": [
-    "dist"
+    "dist/jpeg-decoder.min.js"
   ]
 }

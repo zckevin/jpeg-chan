@@ -19,6 +19,12 @@ export class UsedBits {
    * @param {Number} to inclusive
    */
   constructor(from, to) {
+    if (typeof from === "string" && !to) {
+      const args = from.split("-");
+      assert(args.length === 2, `Invalid usedBits input: ${from}`);
+      from = parseInt(args[0]);
+      to = parseInt(args[1]);
+    }
     assert(from >= 1 && to <= 8 && from <= to, `Invalid UsedBits value: ${from}-${to}`);
     this.from = from;
     this.to = to;
@@ -35,6 +41,10 @@ export class UsedBits {
     }
     const diff = 8 - (this.to + 1);
     return (1 << diff) - 1;
+  }
+
+  toString() {
+    return `${this.from}-${this.to}`;
   }
 }
 

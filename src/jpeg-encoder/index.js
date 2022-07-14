@@ -21,6 +21,7 @@ export class JpegEncoder extends JpegChannel {
   constructor(usedBits, encoderType = JpegEncoder.jpegjsEncoder) {
     super(usedBits);
     this.encoderType = encoderType;
+    this.n_channels = 1;
     console.log("User encoder:", this.encoderType);
   }
 
@@ -33,7 +34,7 @@ export class JpegEncoder extends JpegChannel {
     // Bilibili demands image width larger than 10.
     const min_width = 10;
     return Math.max(
-      Math.ceil(Math.sqrt(byteLength)),
+      Math.ceil(Math.sqrt(Math.ceil(byteLength / this.n_channels))),
       min_width
     );
   }
@@ -68,10 +69,16 @@ export class JpegEncoder extends JpegChannel {
         nextByte |= usedMask;
       }
       targetImageData[counter++] = nextByte; // r
-      targetImageData[counter++] = nextByte; // g
-      targetImageData[counter++] = nextByte; // b
-      if (this.encoderType === JpegEncoder.jpegjsEncoder) {
-        targetImageData[counter++] = 255;    // a
+      if (this.n_channels === 1) {
+        targetImageData[counter++] = nextByte; // g
+        targetImageData[counter++] = nextByte; // b
+        if (this.encoderType === JpegEncoder.jpegjsEncoder) {
+          targetImageData[counter++] = 255;    // a
+        }
+      } else if (this.n_channels === 3) {
+        if (((counter + 1) % 4 === 0) && this.encoderType === JpegEncoder.jpegjsEncoder) {
+          targetImageData[counter++] = 255;    // a
+        }
       }
     });
 

@@ -72,8 +72,8 @@ async function upload(imageBuffer) {
 
 
 export class WeiboSink extends BasicSink {
-  constructor(usedBits = new UsedBits(1, 2)) {
-    super(usedBits);
+  constructor(usedBits = new UsedBits(1, 2), key, iv) {
+    super(usedBits, key, iv);
   }
 
   async doUpload(ab, options) {
@@ -81,8 +81,9 @@ export class WeiboSink extends BasicSink {
     const protocol = options.useHttp ? "http" : "https";
     // const CDN_SITES = ["wx1", "tva1"];
     const CDN_SITES = ["wx1"];
-    return CDN_SITES.map(site => {
-      return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
-    });
+    // return CDN_SITES.map(site => {
+    //   return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
+    // });
+    return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
   }
 }

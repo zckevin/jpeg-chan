@@ -5,6 +5,7 @@
 import * as dotenv from "dotenv";
 import FormData from "form-data";
 import https from "https";
+import { Buffer } from "buffer";
 import { BasicSink } from "./base.js";
 import { UsedBits } from "../bits-manipulation.js";
 
@@ -63,16 +64,19 @@ async function upload(ab) {
 
 
 export class BilibiliSink extends BasicSink {
-  constructor(usedBits = new UsedBits(1, 6)) {
-    super(usedBits);
+  constructor(usedBits = new UsedBits(1, 6), key, iv) {
+    super(usedBits, key, iv);
+
+    this.MIN_UPLOAD_BUFFER_SIZE = 200;
   }
 
   async doUpload(ab, options) {
     const url = await upload(ab);
     // https://jxyblog.top/article/e3efd7b7.html
-    return [
-     // `${url}@100q.jpg`, // higest compression rate
-      `${url}`, // original
-    ]
+    // return [
+    //  // `${url}@100q.jpg`, // higest compression rate
+    //   `${url}`, // original
+    // ]
+    return url;
   }
 }

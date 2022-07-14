@@ -11,7 +11,7 @@ const sinks = [ WeiboSink, BilibiliSink ];
  * @param {*} url 
  * @returns 
  */
-async function validate(original, usedBits, url) {
+export async function validate(original, usedBits, url) {
   const ab = await fetch(url).then(res => res.arrayBuffer());
   // console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2));
 
@@ -21,7 +21,7 @@ async function validate(original, usedBits, url) {
 
   for (let i = 0; i < original.byteLength; i++) {
     if (original[i] !== decoded[i]) {
-      // console.log(`index ${i}`, original[i], decoded[i]);
+      console.log(`index ${i}`, original[i], decoded[i]);
       return false;
     }
   }
