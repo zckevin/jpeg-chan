@@ -22,7 +22,8 @@
     "node-fetch": "^3.1.1",
     "protobufjs": "^7.0.0",
     "protobufjs-cli": "^1.0.0",
-    "read-chunk": "^4.0.2"
+    "read-chunk": "^4.0.2",
+    "sharp": "^0.30.7"
   },
   "devDependencies": {
     "copy-webpack-plugin": "^10.2.0",

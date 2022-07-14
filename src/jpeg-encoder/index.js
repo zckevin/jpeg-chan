@@ -1,6 +1,9 @@
+import sharp from "sharp";
+
 import { assert } from "../assert.js";
 import { JpegChannel } from "../jpeg-channel.js";
 import * as bits from "../bits-manipulation.js";
+import jpegjs from "../jpeg-js/index.js";
 
 // import lazily/on-demand using webpack
 async function importEncoderByEnv(typ) {
@@ -23,6 +26,8 @@ export class JpegEncoder extends JpegChannel {
     this.encoderType = encoderType;
     this.n_channels = 1;
     console.log("Use encoder:", this.encoderType);
+
+    this.cachedMaskPhotoComponents = new Map();
   }
 
   /**
@@ -39,8 +44,8 @@ export class JpegEncoder extends JpegChannel {
     );
   }
 
-  setPhotoAsMaskFn(fn) {
-    this.nextPhotoMaskByte = fn;
+  setMaskPhotoFilePath(maskPhotoFilePath) {
+    this.maskPhotoFilePath = maskPhotoFilePath;
   }
 
   debugPrint(byte) {
@@ -48,10 +53,7 @@ export class JpegEncoder extends JpegChannel {
     console.log(s.substr(-8, 8));
   }
 
-  generateTargetImageData(arr) {
-    const width = this.cacluateSquareImageWidth(arr.byteLength);
-    console.log("target image width: ", width);
-
+  generateTargetImageData(width, arr, nextPhotoMaskByteFn = null) {
     // I don't know why jpegjs can't work with 3 channels...
     const channels = this.encoderType === JpegEncoder.jpegjsEncoder ? 4 : 3;
     const targetImageData = new Uint8ClampedArray(width * width * channels);
@@ -61,10 +63,10 @@ export class JpegEncoder extends JpegChannel {
     arr.forEach((nextByte, index) => {
       // Fill the setted mask image's chroma component byte's most significant bits 
       // to output image's most significant bits.
-      if (this.nextPhotoMaskByte) {
+      if (nextPhotoMaskByteFn) {
         assert(this.usedBits.from >= 2,
           "When using photo mask, usedBits' from bit index should be greater than 1.")
-        const photoMask = this.nextPhotoMaskByte(width);
+        const photoMask = nextPhotoMaskByteFn(width);
         const usedMask = bits.keepMostSignificantNBits(photoMask, this.usedBits.from - 1);
         nextByte |= usedMask;
       }
@@ -89,6 +91,43 @@ export class JpegEncoder extends JpegChannel {
     }
   }
 
+  async getCachedMaskPhotoComponents(maskPhotoFilePath, width) {
+    const key = `${maskPhotoFilePath}-${width}`;
+    if (this.cachedMaskPhotoComponents.has(key)) {
+      return this.cachedMaskPhotoComponents.get(key);
+    }
+
+    const maskPhotoBuf = await sharp(maskPhotoFilePath)
+      .resize(width, width)
+      .jpeg({ mozjpeg: true })
+      .toBuffer();
+    // .toFile('/tmp/hehe.mask.jpg', (err, info) => { console.log(err, info) });
+
+    const { components } = jpegjs.getImageComponents(maskPhotoBuf.buffer);
+    // mask photo's height & width should be larger than outputWidth
+    assert(components[0].lines.length >= width && components[0].lines[0].length >= width);
+
+    this.cachedMaskPhotoComponents.set(key, components);
+    return components;
+  }
+
+  async caculateMaskPhoto(maskPhotoFilePath, width) {
+    if (!maskPhotoFilePath) {
+      return;
+    }
+    const components = await this.getCachedMaskPhotoComponents(maskPhotoFilePath, width);
+
+    let i = 0, j = 0;
+    const maskFn = (outputWidth) => {
+      if (j >= outputWidth) {
+        i += 1;
+        j = 0;
+      }
+      return components[0].lines[i][j++];
+    };
+    return maskFn;
+  }
+
   /**
    * @param {ArrayBuffer} ab, input image raw data
    * @returns {ArrayBuffer}
@@ -96,7 +135,11 @@ export class JpegEncoder extends JpegChannel {
   async Write(ab) {
     assert(ab.byteLength > 0, "input image data should not be empty");
     const serialized = bits.serialize(new Uint8Array(ab), this.usedBits);
-    const targetImageData = this.generateTargetImageData(serialized);
+    const width = this.cacluateSquareImageWidth(serialized.byteLength);
+    console.log("target image width: ", width);
+
+    const nextPhotoMaskByteFn = await this.caculateMaskPhoto(this.maskPhotoFilePath, width);
+    const targetImageData = this.generateTargetImageData(width, serialized, nextPhotoMaskByteFn);
 
     const encoder = await importEncoderByEnv(this.encoderType);
     const imageQuality = 100; // highest quality

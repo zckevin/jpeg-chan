@@ -69,7 +69,7 @@ program
   .command('test')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-  .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
+  .option('-p, --maskPhotoFilePath <maskPhotoFilePath>', 'the photo path that is used as mask')
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
   .action(async (size, usedBits, options) => {
     let sinkType = null;
@@ -92,7 +92,7 @@ program
       new UsedBits(usedBits), // usedBits
       new CipherConfig("aes-128-gcm", crypto.randomBytes(16), crypto.randomBytes(12)),
       true, // validate
-      null, // maskPhotoFilePath
+      options.maskPhotoFilePath, // maskPhotoFilePath
       null, // encoder
       sinkType, // sinkType
     );

@@ -41,24 +41,24 @@ export class BasicSink {
     return dec;
   }
 
-  usePhotoAsMask(encoder, photoMaskFile) {
-    const maskPhotoBuf = fs.readFileSync(photoMaskFile);
-    const { width, height, components } = jpegjs.getImageComponents(maskPhotoBuf.buffer);
+  // usePhotoAsMask(encoder, photoMaskFile) {
+  //   const maskPhotoBuf = fs.readFileSync(photoMaskFile);
+  //   const { width, height, components } = jpegjs.getImageComponents(maskPhotoBuf.buffer);
 
-    // mask photo's height & width should be larger than outputWidth
-    // assert(components[0].lines.length >= outputWidth);
-    // assert(components[0].lines[0].length >= outputWidth);
+  //   // mask photo's height & width should be larger than outputWidth
+  //   // assert(components[0].lines.length >= outputWidth);
+  //   // assert(components[0].lines[0].length >= outputWidth);
 
-    let i = 0, j = 0;
-    const maskFn = (outputWidth) => {
-      if (j >= outputWidth) {
-        i += 1;
-        j = 0;
-      }
-      return components[0].lines[i][j++];
-    };
-    encoder.setPhotoAsMaskFn(maskFn);
-  }
+  //   let i = 0, j = 0;
+  //   const maskFn = (outputWidth) => {
+  //     if (j >= outputWidth) {
+  //       i += 1;
+  //       j = 0;
+  //     }
+  //     return components[0].lines[i][j++];
+  //   };
+  //   encoder.setPhotoAsMaskFn(maskFn);
+  // }
 
   padBuffer(buf) {
     if (this.MIN_UPLOAD_BUFFER_SIZE === 0 || buf.length >= this.MIN_UPLOAD_BUFFER_SIZE) {
@@ -111,8 +111,10 @@ export class BasicSink {
       config.usedBits || this.DEFAULT_USED_BITS,
       config.encoder || JpegEncoder.jpegjsEncoder,
     );
+    console.log("config", config)
     if (config.maskPhotoFilePath) {
-      this.usePhotoAsMask(enc, config.maskPhotoFilePath);
+      // this.usePhotoAsMask(enc, config.maskPhotoFilePath);
+      enc.setMaskPhotoFilePath(config.maskPhotoFilePath);
     }
     const encypted = this.encryptBuffer(original, config.cipherConfig);
     const encoded = await enc.Write(this.padBuffer(encypted));
