@@ -1,13 +1,8 @@
-import * as fs from "fs"
-import fetch from 'node-fetch';
 import { Command } from 'commander';
 import crypto from 'crypto';
+import fs from "fs";
 import { fs as memfs } from 'memfs';
 
-import { randomBytesArray } from "../src/utils.js";
-import { WeiboSink } from '../src/sinks/weibo.js';
-import { BilibiliSink } from '../src/sinks/bilibili.js';
-import { JpegDecoder } from "../src/jpeg-decoder/index.js";
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "../src/assert.js";
 import { DownloadFile, UploadFile } from "../src/file.js"
@@ -152,9 +147,27 @@ program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
-  .action(async (filePath, chunkSize) => {
+  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .action(async (filePath, chunkSize, options) => {
+    let sinkType = null;
+    if (options.sinkType) {
+      switch (options.sinkType) {
+        case "bili": {
+          sinkType = SinkType_BILIBILI_BFS_ALBUM;
+          break;
+        }
+        case "wb": {
+          sinkType = SinkType_WEIBO_WX_SINAIMG;
+          break;
+        }
+        default: {
+          throw new Error(`Unkown sink type: ${options.sinkType}`)
+        }
+      }
+    }
+
     await pbFactory.initPb();
-    const f = new UploadFile(filePath, parseChunkSize(chunkSize));
+    const f = new UploadFile(filePath, parseChunkSize(chunkSize), fs, sinkType);
     const descHex = await f.GenerateDescription()
     console.log(descHex);
   });
