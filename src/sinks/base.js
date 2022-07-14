@@ -5,22 +5,13 @@ import { JpegEncoder } from "../jpeg-encoder/index.js";
 import { JpegDecoder } from "../jpeg-decoder/index.js";
 import jpegjs from "../jpeg-js/index.js";
 import { assert } from "../assert.js";
+import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from "../config.js";
 
 const AES_GCM_AUTH_TAG_LENGTH = 16;
 
 export class BasicSink {
-  constructor(usedBits, key, iv) {
-    console.log("UsedBits: ", usedBits);
-    this.usedBits = usedBits;
-
+  constructor() {
     this.MIN_UPLOAD_BUFFER_SIZE = 0;
-
-    this.key = key;
-    this.iv = iv;
-    // if (key && iv) {
-    //   this.cipher = crypto.createCipheriv("aes-128-gcm", key, iv);
-    //   this.decipher = crypto.createDecipheriv("aes-128-gcm", key, iv);
-    // }
   }
 
   usePhotoAsMask(encoder, photoMaskFile) {
@@ -53,11 +44,13 @@ export class BasicSink {
     return result;
   }
 
-  encryptBuffer(buf) {
-    if (!this.key || !this.iv) {
-      return buf;
-    }
-    const cipher = crypto.createCipheriv("aes-128-gcm", this.key, this.iv);
+  /**
+   * @param {Buffer} buf 
+   * @param {CipherConfig} cipherConfig 
+   * @returns Buffer
+   */
+  encryptBuffer(buf, cipherConfig) {
+    const cipher = crypto.createCipheriv(cipherConfig.algorithm, cipherConfig.key, cipherConfig.iv);
     const chunks = [];
     chunks.push(cipher.update(buf));
     chunks.push(cipher.final());
@@ -65,12 +58,15 @@ export class BasicSink {
     return Buffer.concat(chunks);
   }
 
-  decryptBuffer(buf) {
-    if (!this.key || !this.iv) {
-      return buf;
-    }
-    assert(buf.length >= 16);
-    const decipher = crypto.createDecipheriv("aes-128-gcm", this.key, this.iv);
+  /**
+   * @param {Buffer} buf 
+   * @param {CipherConfig} cipherConfig 
+   * @returns Buffer
+   */
+  decryptBuffer(buf, cipherConfig) {
+    // Supports AES-128-GCM only
+    assert(buf.length >= AES_GCM_AUTH_TAG_LENGTH);
+    const decipher = crypto.createDecipheriv(cipherConfig.algorithm, cipherConfig.key, cipherConfig.iv);
     const chunks = [];
     decipher.setAuthTag(buf.subarray(buf.length - AES_GCM_AUTH_TAG_LENGTH));
     chunks.push(decipher.update(buf.subarray(0, buf.length - AES_GCM_AUTH_TAG_LENGTH)));
@@ -78,24 +74,24 @@ export class BasicSink {
     return Buffer.concat(chunks);
   }
 
-
   /**
    * @param {Buffer} original data to upload 
-   * @param {Object} options
+   * @param {SinkUploadConfig} config
    * @returns {string}
    */
-  async Upload(original, options = {}) {
-    const enc = new JpegEncoder(this.usedBits, JpegEncoder.jpegjsEncoder);
-    if (options["photoMaskFile"]) {
-      this.usePhotoAsMask(enc, options["photoMaskFile"]);
+  async Upload(original, config) {
+    const enc = new JpegEncoder(
+      config.usedBits || this.DEFAULT_USED_BITS,
+      config.encoder || JpegEncoder.jpegjsEncoder,
+    );
+    if (config.maskPhotoFilePath) {
+      this.usePhotoAsMask(enc, config.maskPhotoFilePath);
     }
-    const encypted = options.noEncryption ?
-      original :
-      this.encryptBuffer(original);
+    const encypted = this.encryptBuffer(original, config.cipherConfig);
     const encoded = await enc.Write(this.padBuffer(encypted));
-    const url = await this.doUpload(encoded, options);
-    if (options.validate) {
-      const err = await this.validate(original, url, options);
+    const url = await this.doUpload(encoded, config);
+    if (config.validate) {
+      const err = await this.validate(original, url, config);
       if (err) {
         throw err;
       }
@@ -106,21 +102,25 @@ export class BasicSink {
   /**
    * @param {String} url 
    * @param {Number} size 
-   * @param {Object} options
+   * @param {SinkDownloadConfig} config
    * @returns Buffer
    */
-  async Download(url, size, options = {}) {
+  async Download(url, size, config) {
     const ab = await fetch(url).then(res => res.arrayBuffer());
-    const dec = new JpegDecoder(this.usedBits, JpegDecoder.wasmDecoder);
-    if (options.noEncryption) {
-      return Buffer.from(await dec.Read(ab, size));
-    } else {
-      return this.decryptBuffer(Buffer.from(await dec.Read(ab, size + AES_GCM_AUTH_TAG_LENGTH)));
-    }
+    const dec = new JpegDecoder(
+      config.usedBits || this.DEFAULT_USED_BITS,
+      config.decoder || JpegDecoder.wasmDecoder
+    );
+    // if (options.noEncryption) {
+    //   return Buffer.from(await dec.Read(ab, size));
+    // } else {
+    //   return this.decryptBuffer(Buffer.from(await dec.Read(ab, size + AES_GCM_AUTH_TAG_LENGTH)));
+    // }
+    return this.decryptBuffer(Buffer.from(await dec.Read(ab, size + AES_GCM_AUTH_TAG_LENGTH)), config.cipherConfig);
   }
 
-  async validate(original, url, options) {
-    const decoded = await this.Download(url, original.byteLength, options);
+  async validate(original, url, config) {
+    const decoded = await this.Download(url, original.byteLength, config);
     for (let i = 0; i < original.byteLength; i++) {
       if (original[i] !== decoded[i]) {
         console.log("mismatch", original, url, decoded)
@@ -128,5 +128,27 @@ export class BasicSink {
       }
     }
     return null;
+  }
+
+  /**
+   * @param {string} url 
+   * @returns bool
+   */
+  match(url) {
+    assert(this.regex);
+    return this.regex.test(url);
+  }
+
+  /**
+   * @param {string} url 
+   * @returns string
+   */
+  getImageIDFromUrl(url) {
+    assert(this.regex);
+    const results = this.regex.exec(url);
+    if (results.length < 2) {
+      throw new Error(`ID not found in url: ${url}`);
+    }
+    return results[1];
   }
 }

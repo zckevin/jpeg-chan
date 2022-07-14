@@ -2,22 +2,23 @@ import path from 'path';
 import fs from "fs";
 import crypto from 'crypto';
 import { assert } from "./assert.js";
-import { BilibiliSink } from "./sinks/bilibili.js";
 import { UsedBits } from "./bits-manipulation.js";
 import { Tasker } from "./tasker.v2.js";
 import { pbFactory } from "./formats/pb.js";
+import { sinkDelegate } from "./sinks/delegate.js";
+import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config.js';
 
 // const BOOTLOADER_APPROXIMATELY_SIZE = 256;
 
 class BaseFile {
-  constructor(sink) {
-    // this.usedBits = new UsedBits(1, 5);
-    // this.sink = new BilibiliSink(this.usedBits);
-    this.sink = sink;
-    // this.validate = true;
+  constructor() {
   }
 
-  encodePb(pbClass, pb) {
+  encodePb(pb, pbClass) {
+    if (!pbClass) {
+      assert(this.pbClass);
+      pbClass = this.pbClass;
+    }
     const err = pbClass.verify(pb);
     if (err) {
       throw new Error(err);
@@ -25,52 +26,76 @@ class BaseFile {
     return pbClass.encode(pbClass.create(pb)).finish();
   }
 
-  async upload(pb, options = {}) {
-    assert(this.pbClass);
-    const buf = this.encodePb(this.pbClass, pb)
-    const url = await this.sink.Upload(buf, { ...options, validate: true });
+  /**
+   * @param {Buffer} buf 
+   * @param {SinkUploadConfig} uploadConfig 
+   * @returns 
+   */
+  async upload(buf, uploadConfig) {
+    // const buf = this.encodePb(pb)
+    const { url, usedBits } = await sinkDelegate.Upload(buf, uploadConfig);
     return {
       size: buf.byteLength,
       url,
-      usedBits: this.sink.usedBits.toString(),
+      usedBits: usedBits.toString(),
     }
   }
 
-  async download(filePointer, options = {}) {
+  /**
+   * @param {*} filePointer 
+   * @param {SinkDownloadConfig} downloadConfig 
+   * @returns
+   */
+  async download(filePointer, downloadConfig) {
     // assert(typeof filePointer === pbFactory.PbFilePointer)
     assert(this.pbClass);
-    const buf = await this.sink.Download(filePointer.url, filePointer.size, options)
+    const buf = await sinkDelegate.Download(filePointer.url, filePointer.size, downloadConfig)
     return this.pbClass.decode(buf);
   }
 }
 
+class RawDataFile extends BaseFile {
+  constructor() {
+    super();
+  }
+}
+
 class IndexFile extends BaseFile {
-  constructor(sink) {
-    super(sink);
+  constructor() {
+    super();
     this.pbClass = pbFactory.PbIndexFile;
   }
 
-  async GenFilePointer(fileChunkPointers) {
+  /**
+   * @param {Array<Object>} fileChunkPointers 
+   * @param {SinkUploadConfig} uploadConfig 
+   * @returns 
+   */
+  async GenFilePointer(fileChunkPointers, uploadConfig) {
     const chunks = fileChunkPointers.map(ptr => {
       assert(!pbFactory.PbFilePointer.verify(ptr));
       return pbFactory.PbFilePointer.create(ptr);
     });
-    const config = {
+    const indexFileConfig = {
       ended: true,
       chunks,
     };
-    console.log(config)
-    const filePointer = await this.upload(config);
+    console.log(indexFileConfig)
+    const filePointer = await this.upload(this.encodePb(indexFileConfig), uploadConfig);
     assert(!pbFactory.PbFilePointer.verify(filePointer));
     console.log("indexFile filePointer", filePointer);
     return pbFactory.PbFilePointer.create(filePointer);
   }
 
-  async Download(indexFilePointer) {
-    const indexFile = await this.download(indexFilePointer);
+  async Download(indexFilePointer, downloadConfig) {
+    const indexFile = await this.download(indexFilePointer, downloadConfig);
     console.log("IndexFile", indexFile);
     const tasks = indexFile.chunks.map(chunk => async () => {
-      return await this.sink.Download(chunk.url, chunk.size);
+      return await sinkDelegate.Download(
+        chunk.url,
+        chunk.size,
+        downloadConfig.cloneWithNewUsedBits(new UsedBits(chunk.usedBits)),
+      );
     });
     const downloadTasker = new Tasker(tasks, 50);
     await downloadTasker.done;
@@ -85,8 +110,8 @@ class IndexFile extends BaseFile {
 }
 
 class BootloaderFile extends BaseFile {
-  constructor(sink) {
-    super(sink);
+  constructor() {
+    super();
     this.pbClass = pbFactory.PbBootloaderFile;
   }
 
@@ -97,7 +122,7 @@ class BootloaderFile extends BaseFile {
   //   this.configObj.padding = crypto.randomBytes(paddingLength);
   // }
 
-  async GenDescription(fileSize, chunkSize, fileName, indexFile, aesKey, aesIV) {
+  async GenDescription(fileSize, chunkSize, fileName, indexFile, aesKey, aesIV, uploadConfig, blPassword) {
     const blFileconfig = {
       fileSize,
       chunkSize,
@@ -106,23 +131,31 @@ class BootloaderFile extends BaseFile {
       aesKey,
       aesIV,
     };
-    const bootloaderFile = await this.upload(blFileconfig, { noEncryption: true });
+    const bootloaderFile = await this.upload(this.encodePb(blFileconfig), uploadConfig);
+    const { type, id } = sinkDelegate.GetTypeAndID(bootloaderFile.url);
     const blDescConfig = {
-      bootloaderFile,
-    }
+      type,
+      size: bootloaderFile.size,
+      id,
+      usedBits: bootloaderFile.usedBits,
+      password: blPassword,
+    };
     console.log("bootloaderDesc config", blDescConfig)
-    const descBuf = this.encodePb(pbFactory.PbBootloaderDescription, blDescConfig);
+    const descBuf = this.encodePb(blDescConfig, pbFactory.PbBootloaderDescription);
     return descBuf.toString('hex');
   }
 
-  async Download(blFilePointer) {
-    const blFileConfig = await this.download(blFilePointer, { noEncryption: true });
-    console.log("BootloaderFile config", blFileConfig);
+  async Download(blFilePointer, downloadConfig) {
+    const blFileConfig = await this.download(blFilePointer, downloadConfig);
+    console.log(blFileConfig);
     this.blFileConfig = blFileConfig;
-    this.sink.key = blFileConfig.aesKey;
-    this.sink.iv = blFileConfig.aesIV;
-    const indexFile = new IndexFile(this.sink);
-    return await indexFile.Download(blFileConfig.indexFile);
+    const dataDownloadConfig = new SinkDownloadConfig (
+      new UsedBits(blFileConfig.indexFile.usedBits), // usedBits
+      new CipherConfig("aes-128-gcm", blFileConfig.aesKey, blFileConfig.aesIV),
+      null, // decoder
+    );
+    const indexFile = new IndexFile();
+    return await indexFile.Download(blFileConfig.indexFile, dataDownloadConfig);
   }
 }
 
@@ -145,14 +178,30 @@ export class UploadFile {
 
     this.aesKey = crypto.randomBytes(16);
     this.aesIV = crypto.randomBytes(12);
-    this.usedBits = new UsedBits(1, 5);
-    this.sink = new BilibiliSink(this.usedBits, this.aesKey, this.aesIV);
+    this.blPassword = crypto.randomBytes(8);
 
     this.uploadConcurrency = 10;
     this.downloadConcurrency = 50;
+
+    const scryptBuf = crypto.scryptSync(this.blPassword, "salt", 28);
+    this.blUploadConfig = new SinkUploadConfig(
+      null, // usedBits
+      new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
+      true, // validate
+      null, // maskPhotoFilePath
+      null, // encoder
+    );
+    this.dataUploadConfig = new SinkUploadConfig(
+      null, // usedBits
+      new CipherConfig("aes-128-gcm", this.aesKey, this.aesIV),
+      true, // validate
+      null, // maskPhotoFilePath
+      null, // encoder
+    );
   }
 
   async GenerateDescription() {
+    // step 1. upload file data chunks, get file chunk ptr array
     const tasks = [];
     for (let i = 0; i < this.n_chunks; i++) {
       const fn = async () => {
@@ -164,22 +213,20 @@ export class UploadFile {
         if (bytesRead < this.chunkSize) {
           chunk = chunk.slice(0, bytesRead);
         }
-        const url = await this.sink.Upload(chunk, { validate: true });
-        console.log(`Upload chunk ${i}, chunk length: ${chunk.byteLength}, result:`, url)
-        return {
-          size: chunk.byteLength,
-          url,
-          usedBits: this.usedBits.toString(),
-        };
+        const file = new RawDataFile();
+        return await file.upload(chunk, this.dataUploadConfig);
       }
       tasks.push(fn);
     }
     const uploadTasker = new Tasker(tasks, 10);
     await uploadTasker.done;
 
-    const indexFile = new IndexFile(this.sink);
-    const indexFilePointer = await indexFile.GenFilePointer(uploadTasker.results);
-    const bootloaderFile = new BootloaderFile(this.sink)
+    // step 2. create/upload index file(s)
+    const indexFile = new IndexFile();
+    const indexFilePointer = await indexFile.GenFilePointer(uploadTasker.results, this.dataUploadConfig);
+
+    // step 2. create/upload bootloader file
+    const bootloaderFile = new BootloaderFile()
     const descHex = await bootloaderFile.GenDescription(
       this.fileSize,
       this.chunkSize,
@@ -187,6 +234,8 @@ export class UploadFile {
       indexFilePointer,
       this.aesKey,
       this.aesIV,
+      this.blUploadConfig,
+      this.blPassword,
     );
     return descHex;
   }
@@ -196,14 +245,24 @@ export class DownloadFile {
   constructor(descHex) {
     const buf = Buffer.from(descHex, "hex");
     this.desc = pbFactory.PbBootloaderDescription.decode(buf);
-    this.sink = new BilibiliSink(
-      new UsedBits(this.desc.bootloaderFile.usedBits),
+    console.log(this.desc);
+
+    const scryptBuf = crypto.scryptSync(this.desc.password, "salt", 28);
+    this.blDownloadConfig = new SinkDownloadConfig(
+      new UsedBits(this.desc.usedBits), // usedBits
+      new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
+      null, // decoder
     );
   }
 
   async Download(outputFilePath) {
-    const blFile = new BootloaderFile(this.sink);
-    const fileBuf = await blFile.Download(this.desc.bootloaderFile);
+    const blFile = new BootloaderFile();
+    const blFilePtr = {
+      size: this.desc.size,
+      url: sinkDelegate.ExpandIDToUrl(this.desc.type, this.desc.id),
+      usedBits: this.desc.usedBits,
+    };
+    const fileBuf = await blFile.Download(blFilePtr, this.blDownloadConfig);
     if (!outputFilePath) {
       outputFilePath = path.join("/tmp", blFile.blFileConfig.fileName);
     }

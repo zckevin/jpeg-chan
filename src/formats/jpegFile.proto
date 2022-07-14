@@ -23,6 +23,12 @@ message BootloaderFile {
 }
 
 message BootloaderDescription {
-    required FilePointer bootloaderFile = 1;
-    optional bytes key = 2;
+    enum ImageType {
+        BILIBILI_BFS_ALBUM = 0;
+    }
+    required ImageType type = 1;
+    required uint32 size = 2;
+    required string id = 3;
+    required string usedBits = 4;
+    required bytes password = 5;
 }

@@ -1,26 +1,17 @@
 import protobufjs from "protobufjs";
+import crypto from "crypto";
 
 protobufjs.load("jpegFile.proto", (err, root) => {
   if (err)
     throw err;
 
-  const Message = root.lookupType("BootloaderFile");
-  const file = {
-    length: 1024 * 10,
-    chunkSize: 1024,
-    indexFile: {
-      length: 128,
-      url: "sfsfs",
-      usedBits: "1-5",
-    },
-    padding: 'sfsf2sfsf',
-  }
-  const errMsg = Message.verify(file);
-  if (errMsg)
-    throw Error(errMsg);
-
-  const serialized = Message.encode(Message.create(file)).finish(); // produce: <Buffer 0a 03 66 6f 6f 10 1e>
-  console.log(serialized, serialized.byteLength)
-
-  console.log(Message.decode(serialized))
+  const Message = root.lookupType("BootloaderDescription");
+  const buf = Message.encode(Message.create({
+    type: 1,
+    size: 1112,
+    id: "0163161b889c3ec7ad0c7b0d60603dd6e66ff2f5",
+    password: crypto.randomBytes(8),
+  })).finish()
+  console.log(buf.toString("hex"));
 });
+// 080010d808-0163161b889c3ec7ad0c7b0d60603dd6e66ff2f5-114313

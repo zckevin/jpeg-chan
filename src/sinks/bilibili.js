@@ -64,13 +64,15 @@ async function upload(ab) {
 
 
 export class BilibiliSink extends BasicSink {
-  constructor(usedBits = new UsedBits(1, 6), key, iv) {
-    super(usedBits, key, iv);
-
+  constructor() {
+    super();
     this.MIN_UPLOAD_BUFFER_SIZE = 200;
+    this.DEFAULT_USED_BITS = new UsedBits(1, 5);
+    this.regex = /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/;
+    this.type = 0;
   }
 
-  async doUpload(ab, options) {
+  async doUpload(ab, config) {
     const url = await upload(ab);
     // https://jxyblog.top/article/e3efd7b7.html
     // return [
@@ -78,5 +80,9 @@ export class BilibiliSink extends BasicSink {
     //   `${url}`, // original
     // ]
     return url;
+  }
+
+  expandIDToUrl(id) {
+    return `https://i0.hdslb.com/bfs/album/${id}.jpg`;
   }
 }

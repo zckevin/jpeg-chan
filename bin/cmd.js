@@ -79,19 +79,6 @@ function tryUploadUntilFailed(bufLen, usedBits, options) {
 }
 
 const program = new Command();
-// program
-//   .command('upload')
-//   .argument('<filePath>', 'upload file', String)
-//   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-//   .action(async (filePath, usedBits) => {
-//     console.log(filePath, usedBits)
-// 
-//     const args = usedBits.split("-");
-//     assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
-//     usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
-// 
-//     await upload(fs.readFileSync(filePath), usedBits, {});
-//   });
 
 program
   .command('test')

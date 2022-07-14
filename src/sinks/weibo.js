@@ -72,12 +72,17 @@ async function upload(imageBuffer) {
 
 
 export class WeiboSink extends BasicSink {
-  constructor(usedBits = new UsedBits(1, 2), key, iv) {
-    super(usedBits, key, iv);
+  constructor() {
+    super();
+    this.MIN_UPLOAD_BUFFER_SIZE = 200;
+    this.DEFAULT_USED_BITS = new UsedBits(1, 2);
+    this.regex = /https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-z]+)\.jpe?g/;
+    this.type = 0;
   }
 
-  async doUpload(ab, options) {
-    const pid = await upload(Buffer.from(ab));
+  async doUpload(ab, config) {
+    const id = await upload(Buffer.from(ab));
+    /*
     const protocol = options.useHttp ? "http" : "https";
     // const CDN_SITES = ["wx1", "tva1"];
     const CDN_SITES = ["wx1"];
@@ -85,5 +90,11 @@ export class WeiboSink extends BasicSink {
     //   return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
     // });
     return `${protocol}://${site}.sinaimg.cn/original/${pid}.jpg`;
+    */
+    return `http://wx1.sinaimg.cn/original/${id}.jpg`;
+  }
+
+  expandIDToUrl(id) {
+    return `http://wx1.sinaimg.cn/original/${id}.jpg`;
   }
 }
