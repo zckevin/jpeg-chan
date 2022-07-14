@@ -22,7 +22,7 @@ class ProtobufFactory {
       this.PbBootloaderDescription = root.lookupType("BootloaderDescription");
       this.PbBootloaderFile = root.lookupType("BootloaderFile");
       this.PbIndexFile = root.lookupType("IndexFile");
-      this.PbFileChunk = root.lookupType("FileChunk");
+      this.PbFilePointer = root.lookupType("FilePointer");
 
       this.initDone = true;
       resolveFn();

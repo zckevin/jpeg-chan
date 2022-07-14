@@ -36,10 +36,10 @@ class BaseFile {
     }
   }
 
-  async download(fileChunk, options = {}) {
-    // assert(typeof fileChunk === pbFactory.PbFileChunk)
+  async download(filePointer, options = {}) {
+    // assert(typeof filePointer === pbFactory.PbFilePointer)
     assert(this.pbClass);
-    const buf = await this.sink.Download(fileChunk.url, fileChunk.size, options)
+    const buf = await this.sink.Download(filePointer.url, filePointer.size, options)
     return this.pbClass.decode(buf);
   }
 }
@@ -50,24 +50,24 @@ class IndexFile extends BaseFile {
     this.pbClass = pbFactory.PbIndexFile;
   }
 
-  async GenFileChunk(fileChunkObjs) {
-    const chunks = fileChunkObjs.map(obj => {
-      assert(!pbFactory.PbFileChunk.verify(obj));
-      return pbFactory.PbFileChunk.create(obj);
+  async GenFilePointer(fileChunkPointers) {
+    const chunks = fileChunkPointers.map(ptr => {
+      assert(!pbFactory.PbFilePointer.verify(ptr));
+      return pbFactory.PbFilePointer.create(ptr);
     });
     const config = {
       ended: true,
       chunks,
     };
     console.log(config)
-    const fileChunk = await this.upload(config);
-    assert(!pbFactory.PbFileChunk.verify(fileChunk));
-    console.log("indexFile fileChunk", fileChunk);
-    return pbFactory.PbFileChunk.create(fileChunk);
+    const filePointer = await this.upload(config);
+    assert(!pbFactory.PbFilePointer.verify(filePointer));
+    console.log("indexFile filePointer", filePointer);
+    return pbFactory.PbFilePointer.create(filePointer);
   }
 
-  async Download(indexFileChunk) {
-    const indexFile = await this.download(indexFileChunk);
+  async Download(indexFilePointer) {
+    const indexFile = await this.download(indexFilePointer);
     console.log("IndexFile", indexFile);
     const tasks = indexFile.chunks.map(chunk => async () => {
       return await this.sink.Download(chunk.url, chunk.size);
@@ -115,14 +115,14 @@ class BootloaderFile extends BaseFile {
     return descBuf.toString('hex');
   }
 
-  async Download(blFileChunk) {
-    const blFile = await this.download(blFileChunk, { noEncryption: true });
-    console.log("BootloaderFile config", blFile);
-    this.blFile = blFile;
-    this.sink.key = blFile.aesKey;
-    this.sink.iv = blFile.aesIV;
+  async Download(blFilePointer) {
+    const blFileConfig = await this.download(blFilePointer, { noEncryption: true });
+    console.log("BootloaderFile config", blFileConfig);
+    this.blFileConfig = blFileConfig;
+    this.sink.key = blFileConfig.aesKey;
+    this.sink.iv = blFileConfig.aesIV;
     const indexFile = new IndexFile(this.sink);
-    return await indexFile.Download(blFile.indexFile);
+    return await indexFile.Download(blFileConfig.indexFile);
   }
 }
 
@@ -178,13 +178,13 @@ export class UploadFile {
     await uploadTasker.done;
 
     const indexFile = new IndexFile(this.sink);
-    const indexFileChunk = await indexFile.GenFileChunk(uploadTasker.results);
+    const indexFilePointer = await indexFile.GenFilePointer(uploadTasker.results);
     const bootloaderFile = new BootloaderFile(this.sink)
     const descHex = await bootloaderFile.GenDescription(
       this.fileSize,
       this.chunkSize,
       this.fileName,
-      indexFileChunk,
+      indexFilePointer,
       this.aesKey,
       this.aesIV,
     );
@@ -205,8 +205,7 @@ export class DownloadFile {
     const blFile = new BootloaderFile(this.sink);
     const fileBuf = await blFile.Download(this.desc.bootloaderFile);
     if (!outputFilePath) {
-      console.log(this.desc.bootloaderFile)
-      outputFilePath = path.join("/tmp", blFile.blFile.fileName);
+      outputFilePath = path.join("/tmp", blFile.blFileConfig.fileName);
     }
     fs.writeFileSync(outputFilePath, fileBuf);
   }
