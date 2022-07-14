@@ -67,7 +67,7 @@ class IndexFile extends BaseFile {
     this.pbClass = PbIndexFile;
   }
 
-  async genFileChunk(fileChunkObjs) {
+  async GenFileChunk(fileChunkObjs) {
     const chunks = fileChunkObjs.map(obj => {
       assert(!PbFileChunk.verify(obj));
       return PbFileChunk.create(obj);
@@ -83,18 +83,18 @@ class IndexFile extends BaseFile {
     return PbFileChunk.create(fileChunk);
   }
 
-  async Create(indexFileChunk) {
+  async CreateFromFileChunk(indexFileChunk) {
     const indexFile = await this.download(indexFileChunk);
     console.log("IndexFile", indexFile);
     const tasks = indexFile.chunks.map(chunk => async () => {
       return await this.sink.Download(chunk.url, chunk.size);
     });
-    const tasker = new Tasker(tasks, 10);
-    await tasker.done;
-    console.log(tasker.results);
+    const downloadTasker = new Tasker(tasks, 50);
+    await downloadTasker.done;
+    console.log(downloadTasker.results);
 
     const hash = crypto.createHash("md5");
-    hash.update(Buffer.concat(tasker.results));
+    hash.update(Buffer.concat(downloadTasker.results));
     console.log(hash.digest("hex"));
   }
 }
@@ -112,7 +112,7 @@ class BootloaderFile extends BaseFile {
   //   this.configObj.padding = crypto.randomBytes(paddingLength);
   // }
 
-  async genDescription(fileSize, chunkSize, fileName, indexFile, aesKey, aesIV) {
+  async GenDescription(fileSize, chunkSize, fileName, indexFile, aesKey, aesIV) {
     const blFileconfig = {
       fileSize,
       chunkSize,
@@ -130,13 +130,13 @@ class BootloaderFile extends BaseFile {
     return descBuf.toString('hex');
   }
 
-  async Create(blFileChunk) {
+  async CreateFromFileChunk(blFileChunk) {
     const blFile = await this.download(blFileChunk, { noEncryption: true });
     console.log("BootloaderFile config", blFile);
     this.sink.key = blFile.aesKey;
     this.sink.iv = blFile.aesIV;
     const indexFile = new IndexFile(this.sink);
-    await indexFile.Create(blFile.indexFile);
+    await indexFile.CreateFromFileChunk(blFile.indexFile);
   }
 }
 
@@ -156,8 +156,6 @@ export class File {
 
     this.n_chunks = Math.ceil(fileSize / chunkSize);
     this.lastChunkSize = fileSize % chunkSize;
-    this.fileChunks = new Array(this.n_chunks);
-    this.chunkIndex = 0;
 
     this.aesKey = crypto.randomBytes(16);
     this.aesIV = crypto.randomBytes(12);
@@ -168,46 +166,35 @@ export class File {
     this.downloadConcurrency = 50;
   }
 
-  async uploadWorker() {
-    while (true) {
-      if (this.chunkIndex >= this.n_chunks) {
-        return;
-      }
-      // buffer index value and do self increment
-      const index = this.chunkIndex++;
-      let chunk = Buffer.alloc(this.chunkSize);
-      const bytesRead = fs.readSync(this.fd, chunk, {
-        length: this.chunkSize,
-        position: this.chunkSize * index,
-      });
-      if (bytesRead < this.chunkSize) {
-        chunk = chunk.slice(0, bytesRead);
-      }
-      const url = await this.sink.Upload(chunk, { validate: true });
-      console.log(`Upload chunk ${index}, chunk length: ${chunk.byteLength}, result:`, url)
-      this.fileChunks[index] = {
-        size: chunk.byteLength,
-        url,
-        usedBits: this.usedBits.toString(),
-      }
-    }
-  }
-
-  async spawnWorkers(fn, concurrency) {
-    const promises = [];
-    for (let i = 0; i < concurrency; i++) {
-      promises.push(fn());
-    }
-    await Promise.all(promises)
-  }
-
   async GenerateDescription() {
-    await this.spawnWorkers(this.uploadWorker.bind(this), this.uploadConcurrency);
+    const tasks = [];
+    for (let i = 0; i < this.n_chunks; i++) {
+      const fn = async () => {
+        let chunk = Buffer.alloc(this.chunkSize);
+        const bytesRead = fs.readSync(this.fd, chunk, {
+          length: this.chunkSize,
+          position: this.chunkSize * i,
+        });
+        if (bytesRead < this.chunkSize) {
+          chunk = chunk.slice(0, bytesRead);
+        }
+        const url = await this.sink.Upload(chunk, { validate: true });
+        console.log(`Upload chunk ${i}, chunk length: ${chunk.byteLength}, result:`, url)
+        return {
+          size: chunk.byteLength,
+          url,
+          usedBits: this.usedBits.toString(),
+        };
+      }
+      tasks.push(fn);
+    }
+    const uploadTasker = new Tasker(tasks, 10);
+    await uploadTasker.done;
 
     const indexFile = new IndexFile(this.sink);
-    const indexFileChunk = await indexFile.genFileChunk(this.fileChunks);
+    const indexFileChunk = await indexFile.GenFileChunk(uploadTasker.results);
     const bootloaderFile = new BootloaderFile(this.sink)
-    const descHex = await bootloaderFile.genDescription(
+    const descHex = await bootloaderFile.GenDescription(
       this.fileSize,
       this.chunkSize,
       this.fileName,
@@ -232,25 +219,6 @@ export class DownloadFile {
 
   async test() {
     const blFile = new BootloaderFile(this.sink);
-    await blFile.Create(this.desc.bootloaderFile)
-  }
-
-  async downloadWorker() {
-    /*
-    while (true) {
-      if (currentIndex >= urls.length) {
-        return;
-      }
-      // buffer index value and do self increment
-      const index = currentIndex++;
-      const ab = await fetch(urls[index]).then(res => res.arrayBuffer());
-      console.log(urls[index], ab.byteLength)
-      const dec = new JpegDecoder(defaultUsedBits, JpegDecoder.wasmDecoder);
-
-      const bytesToRead = (index + 1 === urls.length) ? lastChunkSize : chunkSize;
-      const decoded = Buffer.from(await dec.Read(ab, bytesToRead));
-      chunks[index] = decoded;
-    }
-    */
+    await blFile.CreateFromFileChunk(this.desc.bootloaderFile)
   }
 }
