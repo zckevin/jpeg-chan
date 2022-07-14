@@ -22,13 +22,15 @@ export class SinkUploadConfig {
    * @param {boolean} validate 
    * @param {string} maskPhotoFilePath 
    * @param {symbol} encoder
+   * @param {Number} sinkType
    */
-	constructor(usedBits, cipherConfig, validate, maskPhotoFilePath, encoder) {
+	constructor(usedBits, cipherConfig, validate, maskPhotoFilePath, encoder, sinkType) {
     this.usedBits = usedBits;
     this.cipherConfig = cipherConfig;
     this.validate = validate;
     this.maskPhotoFilePath = maskPhotoFilePath;
     this.encoder = encoder;
+    this.sinkType = sinkType;
 	}
 }
 

@@ -23,12 +23,12 @@ message BootloaderFile {
 }
 
 message BootloaderDescription {
-    enum ImageType {
-        BILIBILI_BFS_ALBUM = 0;
-        WEIBO_WX_SINAIMG = 1;
+    enum SinkType {
+        SinkType_BILIBILI_BFS_ALBUM = 1;
+        SinkType_WEIBO_WX_SINAIMG = 2;
     }
     required string id = 1;
-    required ImageType type = 2;
+    required SinkType type = 2;
     required uint32 size = 3;
     required string usedBits = 4;
     required bytes password = 5;

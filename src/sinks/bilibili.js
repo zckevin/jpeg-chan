@@ -8,6 +8,7 @@ import https from "https";
 import { Buffer } from "buffer";
 import { BasicSink } from "./base.js";
 import { UsedBits } from "../bits-manipulation.js";
+import { SinkType_BILIBILI_BFS_ALBUM } from "../formats/pb.js";
 
 dotenv.config();
 
@@ -69,7 +70,7 @@ export class BilibiliSink extends BasicSink {
     this.MIN_UPLOAD_BUFFER_SIZE = 200;
     this.DEFAULT_USED_BITS = new UsedBits(1, 5);
     this.regex = /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/;
-    this.type = 0;
+    this.type = SinkType_BILIBILI_BFS_ALBUM;
   }
 
   async doUpload(ab, config) {

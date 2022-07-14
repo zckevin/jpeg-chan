@@ -3,6 +3,7 @@ import * as dotenv from "dotenv";
 import fetch from 'node-fetch';
 import { BasicSink } from "./base.js";
 import { UsedBits } from "../bits-manipulation.js";
+import { SinkType_WEIBO_WX_SINAIMG } from "../formats/pb.js";
 
 // weibo.com old version api
 const UPLOAD_API_URL = "https://picupload.weibo.com/interface/pic_upload.php?data=1&p=1&url=weibo.com&markpos=1&logo=1&marks=0&app=miniblog&s=json&pri=null&file_source=1";
@@ -77,7 +78,7 @@ export class WeiboSink extends BasicSink {
     this.MIN_UPLOAD_BUFFER_SIZE = 200;
     this.DEFAULT_USED_BITS = new UsedBits(1, 2);
     this.regex = /https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-zA-Z]+)\.jpe?g/;
-    this.type = 1;
+    this.type = SinkType_WEIBO_WX_SINAIMG;
   }
 
   async doUpload(ab, config) {

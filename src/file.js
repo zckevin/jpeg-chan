@@ -160,11 +160,14 @@ class BootloaderFile extends BaseFile {
   }
 }
 
-export class UploadFile {
-  constructor(filePath, chunkSize) {
-    assert(chunkSize > 0);
+const realfs = fs;
 
-    const stat = fs.statSync(filePath);
+export class UploadFile {
+  constructor(filePath, chunkSize, fs = realfs /* support memfs inject */, sinkType = null) {
+    assert(chunkSize > 0);
+    this.fs = fs;
+
+    const stat = this.fs.statSync(filePath);
     const fileSize = stat.size;
     if (fileSize === 0) {
       return;
@@ -172,7 +175,7 @@ export class UploadFile {
     this.fileSize = fileSize;
     this.chunkSize = chunkSize;
     this.fileName = path.parse(filePath).base;
-    this.fd = fs.openSync(filePath, "r");
+    this.fd = this.fs.openSync(filePath, "r");
 
     this.n_chunks = Math.ceil(fileSize / chunkSize);
     this.lastChunkSize = fileSize % chunkSize;
@@ -190,7 +193,8 @@ export class UploadFile {
       new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
       true, // validate
       null, // maskPhotoFilePath
-      null, // encoder
+      null, // encoder,
+      sinkType, // sinkType
     );
     this.dataUploadConfig = new SinkUploadConfig(
       null, // usedBits
@@ -198,6 +202,7 @@ export class UploadFile {
       true, // validate
       null, // maskPhotoFilePath
       null, // encoder
+      sinkType, // sinkType
     );
   }
 
@@ -207,10 +212,13 @@ export class UploadFile {
     for (let i = 0; i < this.n_chunks; i++) {
       const fn = async () => {
         let chunk = Buffer.alloc(this.chunkSize);
-        const bytesRead = fs.readSync(this.fd, chunk, {
-          length: this.chunkSize,
-          position: this.chunkSize * i,
-        });
+        const bytesRead = this.fs.readSync(
+          this.fd,
+          chunk,
+          0, // offset
+          this.chunkSize, //length
+          this.chunkSize * i, // position
+        );
         if (bytesRead < this.chunkSize) {
           chunk = chunk.slice(0, bytesRead);
         }

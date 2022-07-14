@@ -127,6 +127,7 @@ export class BasicSink {
         return new Error(`Mismatch at index ${i}: ${original[i]} : ${decoded[i]}`);
       }
     }
+    console.log(`Validate ${url} successfully.`)
     return null;
   }
 

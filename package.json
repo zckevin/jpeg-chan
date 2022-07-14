@@ -17,6 +17,7 @@
     "dotenv": "^10.0.0",
     "form-data": "^3.0.1",
     "lodash": "^4.17.21",
+    "memfs": "^3.4.7",
     "nanojpeg-wasm": "^0.0.4",
     "node-fetch": "^3.1.1",
     "protobufjs": "^7.0.0",

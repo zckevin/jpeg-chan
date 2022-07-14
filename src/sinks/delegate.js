@@ -16,7 +16,15 @@ class SinkDelegate {
    * @returns {Object}
    */
   async Upload(original, config) {
-    const sink = _.sample(this.sinks);
+    let sink;
+    if (config.sinkType) {
+      sink = _.find(this.sinks, s => s.type === config.sinkType);
+      if (!sink) {
+        throw new Error(`No sink found for type: ${config.sinkType}`);
+      }
+    } else {
+      sink = _.sample(this.sinks);
+    }
     return {
       url: await sink.Upload(original, config),
       usedBits: config.usedBits || sink.DEFAULT_USED_BITS,

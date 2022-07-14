@@ -2,6 +2,7 @@ import * as fs from "fs"
 import fetch from 'node-fetch';
 import { Command } from 'commander';
 import crypto from 'crypto';
+import { fs as memfs } from 'memfs';
 
 import { randomBytesArray } from "../src/utils.js";
 import { WeiboSink } from '../src/sinks/weibo.js';
@@ -10,7 +11,7 @@ import { JpegDecoder } from "../src/jpeg-decoder/index.js";
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "../src/assert.js";
 import { DownloadFile, UploadFile } from "../src/file.js"
-import { pbFactory } from "../src/formats/pb.js";
+import { SinkType_BILIBILI_BFS_ALBUM, pbFactory, SinkType_WEIBO_WX_SINAIMG } from "../src/formats/pb.js";
 import { sinkDelegate } from "../src/sinks/delegate.js";
 import { CipherConfig, SinkUploadConfig } from "../src/config.js";
 
@@ -29,43 +30,43 @@ function parseChunkSize(size) {
 }
 
 // const sinks = [ WeiboSink, BilibiliSink ];
-const sinks = [WeiboSink];
-
-async function validate(original, usedBits, url) {
-  const ab = await fetch(url).then(res => res.arrayBuffer());
-  console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2),
-    "image size:", ab.byteLength,
-    "payload size:", original.byteLength);
-
-  const dec = new JpegDecoder(usedBits, JpegDecoder.wasmDecoder);
-  const decoded = Buffer.from(await dec.Read(ab, original.byteLength));
-  // console.log(original, decoded);
-  for (let i = 0; i < original.byteLength; i++) {
-    if (original[i] !== decoded[i]) {
-      console.log(`index ${i}`, original[i], decoded[i]);
-      return false;
-    }
-  }
-  return true;
-}
-
-function tryUploadUntilFailed(bufLen, usedBits, options) {
-  const N = 10;
-  let i = 0;
-  const workerFunc = async function () {
-    while (true) {
-      console.log(`No. ${i++}:`);
-      const buf = Buffer.from(randomBytesArray(bufLen))
-      const sink = new sinks[0](usedBits);
-      options["validate"] = true;
-      const url = await sink.Upload(buf, options);
-      console.log(url);
-    }
-  }
-  for (let i = 0; i < N; i++) {
-    workerFunc();
-  }
-}
+// const sinks = [WeiboSink];
+// 
+// async function validate(original, usedBits, url) {
+//   const ab = await fetch(url).then(res => res.arrayBuffer());
+//   console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2),
+//     "image size:", ab.byteLength,
+//     "payload size:", original.byteLength);
+// 
+//   const dec = new JpegDecoder(usedBits, JpegDecoder.wasmDecoder);
+//   const decoded = Buffer.from(await dec.Read(ab, original.byteLength));
+//   // console.log(original, decoded);
+//   for (let i = 0; i < original.byteLength; i++) {
+//     if (original[i] !== decoded[i]) {
+//       console.log(`index ${i}`, original[i], decoded[i]);
+//       return false;
+//     }
+//   }
+//   return true;
+// }
+// 
+// function tryUploadUntilFailed(bufLen, usedBits, options) {
+//   const N = 10;
+//   let i = 0;
+//   const workerFunc = async function () {
+//     while (true) {
+//       console.log(`No. ${i++}:`);
+//       const buf = Buffer.from(randomBytesArray(bufLen))
+//       const sink = new sinks[0](usedBits);
+//       options["validate"] = true;
+//       const url = await sink.Upload(buf, options);
+//       console.log(url);
+//     }
+//   }
+//   for (let i = 0; i < N; i++) {
+//     workerFunc();
+//   }
+// }
 
 const program = new Command();
 
@@ -74,34 +75,83 @@ program
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
   .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
+  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
   .action(async (size, usedBits, options) => {
+    let sinkType = null;
+    if (options.sinkType) {
+      switch (options.sinkType) {
+        case "bili": {
+          sinkType = SinkType_BILIBILI_BFS_ALBUM;
+          break;
+        }
+        case "wb": {
+          sinkType = SinkType_WEIBO_WX_SINAIMG;
+          break;
+        }
+        default: {
+          throw new Error(`Unkown sink type: ${options.sinkType}`)
+        }
+      }
+    }
     const uploadConfig = new SinkUploadConfig(
       new UsedBits(usedBits), // usedBits
       new CipherConfig("aes-128-gcm", crypto.randomBytes(16), crypto.randomBytes(12)),
       true, // validate
       null, // maskPhotoFilePath
       null, // encoder
+      sinkType, // sinkType
     );
     console.log(await sinkDelegate.Upload(crypto.randomBytes(parseChunkSize(size)), uploadConfig));
-  });
+    });
 
 program
-  .command('try')
+  .command('uploadRandom')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
-  .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-  .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
-  .action(async (size, usedBits, options) => {
-    // console.log(size, usedBits, options)
-    const args = usedBits.split("-");
-    assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
-    usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
-    tryUploadUntilFailed(parseChunkSize(size), usedBits, options);
+  .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
+  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .action(async (size, chunkSize, options) => {
+    let sinkType = null;
+    if (options.sinkType) {
+      switch (options.sinkType) {
+        case "bili": {
+          sinkType = SinkType_BILIBILI_BFS_ALBUM;
+          break;
+        }
+        case "wb": {
+          sinkType = SinkType_WEIBO_WX_SINAIMG;
+          break;
+        }
+        default: {
+          throw new Error(`Unkown sink type: ${options.sinkType}`)
+        }
+      }
+    }
+    const filePath = "/1.file";
+    memfs.writeFileSync(filePath, crypto.randomBytes(parseChunkSize(size)));
+
+    await pbFactory.initPb();
+    const f = new UploadFile(filePath, parseChunkSize(chunkSize), memfs, sinkType);
+    const descHex = await f.GenerateDescription()
+    console.log(descHex);
   });
+
+// program
+//   .command('try')
+//   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
+//   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
+//   .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
+//   .action(async (size, usedBits, options) => {
+//     // console.log(size, usedBits, options)
+//     const args = usedBits.split("-");
+//     assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
+//     usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
+//     tryUploadUntilFailed(parseChunkSize(size), usedBits, options);
+//   });
 
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
-  .argument('<chunkSize>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
+  .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .action(async (filePath, chunkSize) => {
     await pbFactory.initPb();
     const f = new UploadFile(filePath, parseChunkSize(chunkSize));

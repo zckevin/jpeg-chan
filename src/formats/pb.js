@@ -32,3 +32,6 @@ class ProtobufFactory {
 }
 
 export const pbFactory = new ProtobufFactory();
+
+export const SinkType_BILIBILI_BFS_ALBUM = 1;
+export const SinkType_WEIBO_WX_SINAIMG = 2;
