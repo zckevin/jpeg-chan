@@ -11,6 +11,8 @@ import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "../src/assert.js";
 import { DownloadFile, UploadFile } from "../src/file.js"
 import { pbFactory } from "../src/formats/pb.js";
+import { sinkDelegate } from "../src/sinks/delegate.js";
+import { CipherConfig, SinkUploadConfig } from "../src/config.js";
 
 function parseChunkSize(size) {
   let n;
@@ -27,7 +29,7 @@ function parseChunkSize(size) {
 }
 
 // const sinks = [ WeiboSink, BilibiliSink ];
-const sinks = [BilibiliSink];
+const sinks = [WeiboSink];
 
 async function validate(original, usedBits, url) {
   const ab = await fetch(url).then(res => res.arrayBuffer());
@@ -45,19 +47,6 @@ async function validate(original, usedBits, url) {
     }
   }
   return true;
-}
-
-async function upload(buf, usedBits, options) {
-  const aesKey = crypto.randomBytes(16);
-  const aesIV = crypto.randomBytes(12);
-  for (let i = 0; i < sinks.length; i++) {
-    const sink = new sinks[i](usedBits, aesKey, aesIV);
-    console.time('img upload');
-    options["validate"] = true;
-    const url = await sink.Upload(buf, options);
-    console.timeEnd('img upload');
-    console.log(url);
-  }
 }
 
 function tryUploadUntilFailed(bufLen, usedBits, options) {
@@ -86,25 +75,14 @@ program
   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
   .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
   .action(async (size, usedBits, options) => {
-    // console.log(size, usedBits, options)
-
-    let n;
-    if (size.match(/^(\d+)$/)) {
-      n = parseInt(RegExp.$1);
-    } else if (size.match(/^(\d+)[Kk]$/)) {
-      n = parseInt(RegExp.$1) * 1024;
-    } else if (size.match(/^(\d+)[Mm]$/)) {
-      n = parseInt(RegExp.$1) * 1024 * 1024;
-    } else {
-      throw new Error(`invalid size ${size}`);
-    }
-
-    const args = usedBits.split("-");
-    assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
-    usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
-
-    const dataArr = randomBytesArray(Number(n));
-    await upload(Buffer.from(dataArr), usedBits, options);
+    const uploadConfig = new SinkUploadConfig(
+      new UsedBits(usedBits), // usedBits
+      new CipherConfig("aes-128-gcm", crypto.randomBytes(16), crypto.randomBytes(12)),
+      true, // validate
+      null, // maskPhotoFilePath
+      null, // encoder
+    );
+    console.log(await sinkDelegate.Upload(crypto.randomBytes(parseChunkSize(size)), uploadConfig));
   });
 
 program

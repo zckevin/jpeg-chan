@@ -76,8 +76,8 @@ export class WeiboSink extends BasicSink {
     super();
     this.MIN_UPLOAD_BUFFER_SIZE = 200;
     this.DEFAULT_USED_BITS = new UsedBits(1, 2);
-    this.regex = /https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-z]+)\.jpe?g/;
-    this.type = 0;
+    this.regex = /https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-zA-Z]+)\.jpe?g/;
+    this.type = 1;
   }
 
   async doUpload(ab, config) {

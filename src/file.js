@@ -132,6 +132,7 @@ class BootloaderFile extends BaseFile {
       aesIV,
     };
     const bootloaderFile = await this.upload(this.encodePb(blFileconfig), uploadConfig);
+    console.log(bootloaderFile)
     const { type, id } = sinkDelegate.GetTypeAndID(bootloaderFile.url);
     const blDescConfig = {
       type,
@@ -262,6 +263,7 @@ export class DownloadFile {
       url: sinkDelegate.ExpandIDToUrl(this.desc.type, this.desc.id),
       usedBits: this.desc.usedBits,
     };
+    console.log(blFilePtr)
     const fileBuf = await blFile.Download(blFilePtr, this.blDownloadConfig);
     if (!outputFilePath) {
       outputFilePath = path.join("/tmp", blFile.blFileConfig.fileName);

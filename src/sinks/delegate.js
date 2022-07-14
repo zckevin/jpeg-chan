@@ -5,7 +5,7 @@ import _ from "lodash";
 class SinkDelegate {
   constructor() {
     this.sinks = [
-      // new WeiboSink(),
+      new WeiboSink(),
       new BilibiliSink(),
     ];
   }
