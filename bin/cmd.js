@@ -6,7 +6,7 @@ import { fs as memfs } from 'memfs';
 import { UsedBits } from "../src/bits-manipulation.js";
 import { assert } from "../src/assert.js";
 import { DownloadFile, UploadFile } from "../src/file.js"
-import { SinkType_BILIBILI_BFS_ALBUM, pbFactory, SinkType_WEIBO_WX_SINAIMG } from "../src/formats/pb.js";
+import { SinkType_BILIBILI_BFS_ALBUM, pbFactory, SinkType_WEIBO_WX_SINAIMG } from "../src/protobuf/pb.js";
 import { sinkDelegate } from "../src/sinks/delegate.js";
 import { CipherConfig, SinkUploadConfig } from "../src/config.js";
 

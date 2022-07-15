@@ -8,7 +8,7 @@ import https from "https";
 import { Buffer } from "buffer";
 import { BasicSink } from "./base.js";
 import { UsedBits } from "../bits-manipulation.js";
-import { SinkType_BILIBILI_BFS_ALBUM } from "../formats/pb.js";
+import { SinkType_BILIBILI_BFS_ALBUM } from "../protobuf/pb.js";
 
 dotenv.config();
 

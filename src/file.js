@@ -4,11 +4,12 @@ import crypto from 'crypto';
 import { assert } from "./assert.js";
 import { UsedBits } from "./bits-manipulation.js";
 import { Tasker } from "./tasker.v2.js";
-import { pbFactory } from "./formats/pb.js";
+import { pbFactory } from "./protobuf/pb.js";
 import { sinkDelegate } from "./sinks/delegate.js";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config.js';
 
 // const BOOTLOADER_APPROXIMATELY_SIZE = 256;
+const BOOTLOADER_SCRYPT_SALT = "tF%L6uPTJ5^hI%n63s0b";
 
 class BaseFile {
   constructor() {
@@ -187,7 +188,7 @@ export class UploadFile {
     this.uploadConcurrency = 10;
     this.downloadConcurrency = 50;
 
-    const scryptBuf = crypto.scryptSync(this.blPassword, "salt", 28);
+    const scryptBuf = crypto.scryptSync(this.blPassword, BOOTLOADER_SCRYPT_SALT, 28);
     this.blUploadConfig = new SinkUploadConfig(
       null, // usedBits
       new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
@@ -256,7 +257,7 @@ export class DownloadFile {
     this.desc = pbFactory.PbBootloaderDescription.decode(buf);
     console.log(this.desc);
 
-    const scryptBuf = crypto.scryptSync(this.desc.password, "salt", 28);
+    const scryptBuf = crypto.scryptSync(this.desc.password, BOOTLOADER_SCRYPT_SALT, 28);
     this.blDownloadConfig = new SinkDownloadConfig(
       new UsedBits(this.desc.usedBits), // usedBits
       new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),

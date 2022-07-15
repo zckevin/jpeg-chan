@@ -1,9 +1,7 @@
-import fs from "fs"
 import fetch from 'node-fetch';
 import crypto from "crypto";
 import { JpegEncoder } from "../jpeg-encoder/index.js";
 import { JpegDecoder } from "../jpeg-decoder/index.js";
-import jpegjs from "../jpeg-js/index.js";
 import { assert } from "../assert.js";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from "../config.js";
 
@@ -40,25 +38,6 @@ export class BasicSink {
     }
     return dec;
   }
-
-  // usePhotoAsMask(encoder, photoMaskFile) {
-  //   const maskPhotoBuf = fs.readFileSync(photoMaskFile);
-  //   const { width, height, components } = jpegjs.getImageComponents(maskPhotoBuf.buffer);
-
-  //   // mask photo's height & width should be larger than outputWidth
-  //   // assert(components[0].lines.length >= outputWidth);
-  //   // assert(components[0].lines[0].length >= outputWidth);
-
-  //   let i = 0, j = 0;
-  //   const maskFn = (outputWidth) => {
-  //     if (j >= outputWidth) {
-  //       i += 1;
-  //       j = 0;
-  //     }
-  //     return components[0].lines[i][j++];
-  //   };
-  //   encoder.setPhotoAsMaskFn(maskFn);
-  // }
 
   padBuffer(buf) {
     if (this.MIN_UPLOAD_BUFFER_SIZE === 0 || buf.length >= this.MIN_UPLOAD_BUFFER_SIZE) {
