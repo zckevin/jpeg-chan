@@ -90,13 +90,14 @@ class IndexFile extends BaseFile {
   async Download(indexFilePointer, downloadConfig) {
     const indexFile = await this.download(indexFilePointer, downloadConfig);
     console.log("IndexFile", indexFile);
+    const n_chunks = indexFile.chunks.length;
     const tasks = indexFile.chunks.map((chunk, index) => async () => {
       const result = await sinkDelegate.Download(
         chunk.url,
         chunk.size,
         downloadConfig.cloneWithNewUsedBits(new UsedBits(chunk.usedBits)),
       );
-      console.log(`Tasker: finish download task ${index}: ${chunk.url}(${chunk.size})`);
+      console.log(`Tasker: finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
       return result;
     });
     const downloadTasker = new Tasker(tasks, downloadConfig.concurrency);
@@ -229,7 +230,7 @@ export class UploadFile {
         }
         const file = new RawDataFile();
         const result = await file.upload(chunk, this.dataUploadConfig);
-        console.log(`Tasker: finish upload task ${i}, size: ${chunk.byteLength}`);
+        console.log(`Tasker: finish upload task ${i}/${this.n_chunks}, size: ${chunk.byteLength}`);
         return result;
       }
       tasks.push(fn);
