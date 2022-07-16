@@ -33,7 +33,6 @@ class BaseFile {
    * @returns 
    */
   async upload(buf, uploadConfig) {
-    // const buf = this.encodePb(pb)
     const { url, usedBits } = await sinkDelegate.Upload(buf, uploadConfig);
     return {
       size: buf.byteLength,
@@ -91,14 +90,16 @@ class IndexFile extends BaseFile {
   async Download(indexFilePointer, downloadConfig) {
     const indexFile = await this.download(indexFilePointer, downloadConfig);
     console.log("IndexFile", indexFile);
-    const tasks = indexFile.chunks.map(chunk => async () => {
-      return await sinkDelegate.Download(
+    const tasks = indexFile.chunks.map((chunk, index) => async () => {
+      const result = await sinkDelegate.Download(
         chunk.url,
         chunk.size,
         downloadConfig.cloneWithNewUsedBits(new UsedBits(chunk.usedBits)),
       );
+      console.log(`Tasker: finish download task ${index}: ${chunk.url}(${chunk.size})`);
+      return result;
     });
-    const downloadTasker = new Tasker(tasks, 50);
+    const downloadTasker = new Tasker(tasks, downloadConfig.concurrency);
     await downloadTasker.done;
     console.log(downloadTasker.results);
 
@@ -154,6 +155,7 @@ class BootloaderFile extends BaseFile {
     const dataDownloadConfig = new SinkDownloadConfig (
       new UsedBits(blFileConfig.indexFile.usedBits), // usedBits
       new CipherConfig("aes-128-gcm", blFileConfig.aesKey, blFileConfig.aesIV),
+      downloadConfig.concurrency,
       null, // decoder
     );
     const indexFile = new IndexFile();
@@ -164,7 +166,7 @@ class BootloaderFile extends BaseFile {
 const realfs = fs;
 
 export class UploadFile {
-  constructor(filePath, chunkSize, fs = realfs /* support memfs inject */, sinkType = null) {
+  constructor(filePath, chunkSize, concurrency, validate, fs = realfs /* support memfs inject */, sinkType = null) {
     assert(chunkSize > 0);
     this.fs = fs;
 
@@ -192,7 +194,8 @@ export class UploadFile {
     this.blUploadConfig = new SinkUploadConfig(
       null, // usedBits
       new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
-      true, // validate
+      concurrency,
+      validate,
       null, // maskPhotoFilePath
       null, // encoder,
       sinkType, // sinkType
@@ -200,7 +203,8 @@ export class UploadFile {
     this.dataUploadConfig = new SinkUploadConfig(
       null, // usedBits
       new CipherConfig("aes-128-gcm", this.aesKey, this.aesIV),
-      true, // validate
+      concurrency,
+      validate,
       null, // maskPhotoFilePath
       null, // encoder
       sinkType, // sinkType
@@ -224,11 +228,13 @@ export class UploadFile {
           chunk = chunk.slice(0, bytesRead);
         }
         const file = new RawDataFile();
-        return await file.upload(chunk, this.dataUploadConfig);
+        const result = await file.upload(chunk, this.dataUploadConfig);
+        console.log(`Tasker: finish upload task ${i}, size: ${chunk.byteLength}`);
+        return result;
       }
       tasks.push(fn);
     }
-    const uploadTasker = new Tasker(tasks, 10);
+    const uploadTasker = new Tasker(tasks, this.dataUploadConfig.concurrency);
     await uploadTasker.done;
 
     // step 2. create/upload index file(s)
@@ -252,7 +258,7 @@ export class UploadFile {
 }
 
 export class DownloadFile {
-  constructor(descHex) {
+  constructor(descHex, concurrency) {
     const buf = Buffer.from(descHex, "hex");
     this.desc = pbFactory.PbBootloaderDescription.decode(buf);
     console.log(this.desc);
@@ -261,6 +267,7 @@ export class DownloadFile {
     this.blDownloadConfig = new SinkDownloadConfig(
       new UsedBits(this.desc.usedBits), // usedBits
       new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
+      concurrency,
       null, // decoder
     );
   }

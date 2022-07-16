@@ -2,6 +2,7 @@ import { assert } from "./assert.js";
 
 export class Tasker {
   constructor(tasks, max_concurrency, options = {}) {
+    console.log(`Tasker start with concurrency: ${max_concurrency}`);
     assert(max_concurrency > 0);
     this.max_concurrency = max_concurrency;
     this.running = new Set();

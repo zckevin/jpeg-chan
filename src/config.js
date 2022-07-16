@@ -15,18 +15,32 @@ export class CipherConfig {
   }
 }
 
-export class SinkUploadConfig {
+class ConfigBase {
   /**
    * @param {UsedBits} usedBits 
    * @param {CipherConfig} cipherConfig 
+   * @param {Number} concurrency 
+   */
+  constructor(usedBits, cipherConfig, concurrency,) {
+    assert(concurrency > 0, `Concurrency should be integer above 0 instead of ${concurrency}`);
+    this.usedBits = usedBits;
+    this.cipherConfig = cipherConfig;
+    this.concurrency = concurrency;
+  }
+}
+
+export class SinkUploadConfig extends ConfigBase {
+  /**
+   * @param {UsedBits} usedBits 
+   * @param {CipherConfig} cipherConfig 
+   * @param {Number} concurrency 
    * @param {boolean} validate 
    * @param {string} maskPhotoFilePath 
    * @param {symbol} encoder
    * @param {Number} sinkType
    */
-  constructor(usedBits, cipherConfig, validate, maskPhotoFilePath, encoder, sinkType) {
-    this.usedBits = usedBits;
-    this.cipherConfig = cipherConfig;
+  constructor(usedBits, cipherConfig, concurrency, validate, maskPhotoFilePath, encoder, sinkType) {
+    super(usedBits, cipherConfig, concurrency);
     this.validate = validate;
     this.maskPhotoFilePath = maskPhotoFilePath;
     this.encoder = encoder;
@@ -34,19 +48,19 @@ export class SinkUploadConfig {
   }
 }
 
-export class SinkDownloadConfig {
+export class SinkDownloadConfig extends ConfigBase {
   /**
    * @param {UsedBits} usedBits 
    * @param {CipherConfig} cipherConfig 
+   * @param {Number} concurrency 
    * @param {symbol} decoder 
    */
-  constructor(usedBits, cipherConfig, decoder) {
-    this.usedBits = usedBits;
-    this.cipherConfig = cipherConfig;
+  constructor(usedBits, cipherConfig, concurrency, decoder) {
+    super(usedBits, cipherConfig, concurrency);
     this.decoder = decoder;
   }
 
   cloneWithNewUsedBits(usedBits) {
-    return new SinkDownloadConfig(usedBits, this.cipherConfig, this.decoder);
+    return new SinkDownloadConfig(usedBits, this.cipherConfig, this.concurrency, this.decoder);
   }
 }

@@ -24,45 +24,6 @@ function parseChunkSize(size) {
   return n;
 }
 
-// const sinks = [ WeiboSink, BilibiliSink ];
-// const sinks = [WeiboSink];
-// 
-// async function validate(original, usedBits, url) {
-//   const ab = await fetch(url).then(res => res.arrayBuffer());
-//   console.log("inflation rate:", (ab.byteLength / original.byteLength).toFixed(2),
-//     "image size:", ab.byteLength,
-//     "payload size:", original.byteLength);
-// 
-//   const dec = new JpegDecoder(usedBits, JpegDecoder.wasmDecoder);
-//   const decoded = Buffer.from(await dec.Read(ab, original.byteLength));
-//   // console.log(original, decoded);
-//   for (let i = 0; i < original.byteLength; i++) {
-//     if (original[i] !== decoded[i]) {
-//       console.log(`index ${i}`, original[i], decoded[i]);
-//       return false;
-//     }
-//   }
-//   return true;
-// }
-// 
-// function tryUploadUntilFailed(bufLen, usedBits, options) {
-//   const N = 10;
-//   let i = 0;
-//   const workerFunc = async function () {
-//     while (true) {
-//       console.log(`No. ${i++}:`);
-//       const buf = Buffer.from(randomBytesArray(bufLen))
-//       const sink = new sinks[0](usedBits);
-//       options["validate"] = true;
-//       const url = await sink.Upload(buf, options);
-//       console.log(url);
-//     }
-//   }
-//   for (let i = 0; i < N; i++) {
-//     workerFunc();
-//   }
-// }
-
 const program = new Command();
 
 program
@@ -97,13 +58,15 @@ program
       sinkType, // sinkType
     );
     console.log(await sinkDelegate.Upload(crypto.randomBytes(parseChunkSize(size)), uploadConfig));
-    });
+  });
 
 program
   .command('uploadRandom')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('--no-validate', 'do not do validation')
   .action(async (size, chunkSize, options) => {
     let sinkType = null;
     if (options.sinkType) {
@@ -125,29 +88,25 @@ program
     memfs.writeFileSync(filePath, crypto.randomBytes(parseChunkSize(size)));
 
     await pbFactory.initPb();
-    const f = new UploadFile(filePath, parseChunkSize(chunkSize), memfs, sinkType);
+    const f = new UploadFile(
+      filePath,
+      parseChunkSize(chunkSize),
+      parseInt(options.concurrency),
+      options.validate !== false,
+      memfs,
+      sinkType
+    );
     const descHex = await f.GenerateDescription()
     console.log(descHex);
   });
-
-// program
-//   .command('try')
-//   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
-//   .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-//   .option('-p, --photoMaskFile <photoMaskFile>', 'the photo path that is used as mask')
-//   .action(async (size, usedBits, options) => {
-//     // console.log(size, usedBits, options)
-//     const args = usedBits.split("-");
-//     assert(args.length === 2, `Invalid usedBits input: ${usedBits}`);
-//     usedBits = new UsedBits(parseInt(args[0]), parseInt(args[1]));
-//     tryUploadUntilFailed(parseChunkSize(size), usedBits, options);
-//   });
 
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('--no-validate', 'do not do validation')
   .action(async (filePath, chunkSize, options) => {
     let sinkType = null;
     if (options.sinkType) {
@@ -167,7 +126,15 @@ program
     }
 
     await pbFactory.initPb();
-    const f = new UploadFile(filePath, parseChunkSize(chunkSize), fs, sinkType);
+    console.log(options.validate)
+    const f = new UploadFile(
+      filePath,
+      parseChunkSize(chunkSize),
+      parseInt(options.concurrency),
+      options.validate !== false,
+      fs,
+      sinkType
+    );
     const descHex = await f.GenerateDescription()
     console.log(descHex);
   });
@@ -176,9 +143,10 @@ program
   .command('download')
   .argument('<desc>', 'desc hex string', String)
   .option('-o, --output <outputFilePath>', 'the download file path')
+  .option('-c, --concurrency <concurrency>', 'download concurrency', "50")
   .action(async (desc, options) => {
     await pbFactory.initPb();
-    const f = new DownloadFile(desc)
+    const f = new DownloadFile(desc, parseInt(options.concurrency));
     await f.Download(options.outputFilePath);
   });
 
