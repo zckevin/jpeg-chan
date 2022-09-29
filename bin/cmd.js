@@ -52,6 +52,7 @@ program
     const uploadConfig = new SinkUploadConfig(
       new UsedBits(usedBits), // usedBits
       new CipherConfig("aes-128-gcm", crypto.randomBytes(16), crypto.randomBytes(12)),
+      1, // concurrency
       true, // validate
       options.maskPhotoFilePath, // maskPhotoFilePath
       null, // encoder
