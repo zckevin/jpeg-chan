@@ -19,7 +19,7 @@
     "lodash": "^4.17.21",
     "memfs": "^3.4.7",
     "nanojpeg-wasm": "^0.0.4",
-    "node-fetch": "^3.1.1",
+    "node-fetch": "^3.2.10",
     "protobufjs": "^7.0.0",
     "protobufjs-cli": "^1.0.0",
     "read-chunk": "^4.0.2",
