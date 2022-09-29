@@ -48,7 +48,7 @@ async function upload(ab) {
       res.on('end',()=>{
         const result = JSON.parse(str);
         const { message: msg, data } = result;
-        if (msg === 'success') {
+        if (msg === '0') {
           const url = data.image_url.replace('http', 'https')
           return resolve(url);
         }
@@ -56,6 +56,7 @@ async function upload(ab) {
         if (msg === '请先登录') {
           console.log('token过期了，请及时更新命令行中的token');
         }
+        console.log(result);
         reject(new Error("Bilibili: upload failed"));
       });
     });
