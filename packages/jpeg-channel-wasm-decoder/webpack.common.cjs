@@ -3,7 +3,7 @@ const webpack = require("webpack");
 
 const config = {
   target: "webworker",
-  entry: path.resolve(__dirname, "index.js"),
+  entry: path.resolve(__dirname, "index.ts"),
   output: {
     library: "jpeg_decoder",
     path: path.resolve(__dirname, "dist"),

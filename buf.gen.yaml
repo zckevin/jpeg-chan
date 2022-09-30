@@ -1,0 +1,13 @@
+version: v1
+plugins:
+  - name: ts
+    out: /home/zc/PROJECTS/weibo-jpeg-channel/protobuf/gen
+    strategy: all
+    path: node_modules/ts-proto/protoc-gen-ts_proto
+    opt:
+      # generate `$type` and `messageTypeRegistry` for ts type dispatch
+      - outputTypeRegistry=true
+      # use union types for oneof fields instead of interface with many undefined fields
+      - oneof=unions
+      # Specifically the Long imports will be generated as import Long from 'long' instead of import * as Long from 'long'.
+      - esModuleInterop=false

@@ -1,0 +1,32 @@
+syntax = "proto2";
+package protobuf.v1;
+
+message PbFileChunk {
+    required uint32 size = 1;
+    required string url = 2;
+    required string used_bits = 3;
+}
+
+// linked list
+message PbIndexFile {
+    required bool ended = 1;
+    repeated PbFileChunk chunks = 3;
+    optional PbFileChunk next = 2;
+}
+
+message PbBootloaderFile {
+    required uint32 file_size = 1;
+    required uint32 chunk_size = 2;
+    required string file_name = 3;
+    required bytes aes_key = 4;
+    required bytes aes_iv = 5;
+    required PbFileChunk index_file_head = 6;
+}
+
+message PbBootloaderDescription {
+    required string id = 1;
+    required uint32 sink_type = 2;
+    required uint32 size = 3;
+    required string used_bits = 4;
+    required bytes password = 5;
+}

@@ -4,7 +4,7 @@ const CopyPlugin = require("copy-webpack-plugin");
 
 const config = {
   target: "node",
-  entry: path.resolve(__dirname, "index.js"),
+  entry: path.resolve(__dirname, "index.ts"),
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "full.js",
@@ -17,10 +17,19 @@ const config = {
       patterns: [
         {
           from: path.resolve(__dirname, "../../node_modules/@saschazar/wasm-mozjpeg/wasm_mozjpeg.wasm"),
-          to: path.resolve(__dirname, "dist") },
+          to: path.resolve(__dirname, "dist")
+        },
       ],
     }),
   ],
+  module: {
+    rules: [
+      {
+        test: /\.node$/,
+        loader: "node-loader",
+      },
+    ],
+  },
 };
 
 module.exports = config;
