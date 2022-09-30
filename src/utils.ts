@@ -8,16 +8,16 @@ export function randomString(length = 8) {
   let result = "";
   let seeds: number[];
 
-  for(let i = 0; i < length - 1; i++){
-      //Generate seeds array, that will be the bag from where randomly select generated char
-      seeds = [
-          Math.floor(Math.random() * 10) + 48,
-          Math.floor(Math.random() * 25) + 65,
-          Math.floor(Math.random() * 25) + 97
-      ]
-      
-      //Choise randomly from seeds, convert to char and append to result
-      result += String.fromCharCode(seeds[Math.floor(Math.random() * 3)])
+  for (let i = 0; i < length - 1; i++) {
+    //Generate seeds array, that will be the bag from where randomly select generated char
+    seeds = [
+      Math.floor(Math.random() * 10) + 48,
+      Math.floor(Math.random() * 25) + 65,
+      Math.floor(Math.random() * 25) + 97
+    ]
+
+    //Choise randomly from seeds, convert to char and append to result
+    result += String.fromCharCode(seeds[Math.floor(Math.random() * 3)])
   }
 
   return result
@@ -50,7 +50,7 @@ const convert = {
   dec2hex: (s: string) => parseInt(s, 10).toString(16),
 };
 
-export function debugPrint(arr: string[], format: (s: string)=>string) {
+export function debugPrint(arr: string[], format: (s: string) => string) {
   if (!format) {
     format = convert.dec2bin;
   }
@@ -63,7 +63,7 @@ export function debugPrint(arr: string[], format: (s: string)=>string) {
 
 // https://stackoverflow.com/a/14697130/671376
 export function RGB2Y(r: number, g: number, b: number) {
-  return ((19595 * r + 38470 * g + 7471 * b ) >> 16);
+  return ((19595 * r + 38470 * g + 7471 * b) >> 16);
 }
 
 export function BufferToArrayBuffer(buffer: Buffer) {

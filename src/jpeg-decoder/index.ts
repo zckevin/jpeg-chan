@@ -51,6 +51,9 @@ export class JpegDecoder extends JpegChannel {
     if (!this.decoder) {
       this.decoder = await importDecoderByEnv(this.decoderType);
     }
+    if (n <= 0) {
+      return new Uint8Array(0).buffer;
+    }
     const chromaComponent = await this.decoder.getJpegChromaComponent(ab);
     return deserialize(chromaComponent, this.usedBits, n).buffer;
   }

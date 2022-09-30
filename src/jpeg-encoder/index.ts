@@ -37,7 +37,7 @@ export class JpegEncoder extends JpegChannel {
   private n_channels: number = 1;
   private cachedMaskPhotoComponents = new Map();
   private maskPhotoFilePath: string;
-  private sharpFn: any;
+  private sharpMod: any;
 
   constructor(usedBits: UsedBits, encoderType = EncoderType.jpegjsEncoder) {
     super(usedBits);
@@ -106,11 +106,11 @@ export class JpegEncoder extends JpegChannel {
     if (this.cachedMaskPhotoComponents.has(key)) {
       return this.cachedMaskPhotoComponents.get(key);
     }
-    if (!this.sharpFn) {
-      this.sharpFn = await import("sharp");
+    if (!this.sharpMod) {
+      this.sharpMod = await import("sharp");
     }
     // @ts-ignore
-    const maskPhotoBuf = await this.sharpFn(maskPhotoFilePath).resize(width, width)
+    const maskPhotoBuf = await this.sharpMod.default(maskPhotoFilePath).resize(width, width)
       .jpeg({ mozjpeg: true })
       .toBuffer();
     // .toFile('/tmp/hehe.mask.jpg', (err, info) => { console.log(err, info) });
@@ -142,7 +142,9 @@ export class JpegEncoder extends JpegChannel {
   }
 
   async Write(ab: ArrayBuffer) {
-    assert(ab.byteLength > 0, "input image data should not be empty");
+    if (ab.byteLength == 0) {
+      return ab;
+    }
     const serialized = serialize(new Uint8Array(ab), this.usedBits);
     const width = this.cacluateSquareImageWidth(serialized.byteLength);
     console.log("target image width: ", width);

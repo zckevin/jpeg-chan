@@ -1,42 +1,79 @@
 import { EncoderType, JpegEncoder } from "../../src/jpeg-encoder/";
 import { DecoderType, JpegDecoder } from "../../src/jpeg-decoder/";
 import { UsedBits } from '../../src/bits-manipulation';
-import { randomBytesArray } from "../../src/utils";
+import { randomBytesArray, BufferToArrayBuffer } from "../../src/utils";
+import _ from "lodash";
+import path from "path";
+
+const MASK_PHOTO_FILE_PATH = path.join(__dirname, "../../image_templates/mask_400px.jpg");
+
+async function EncDecLoop(
+  encType: EncoderType,
+  decType: DecoderType,
+  usedBits: UsedBits,
+  n: number = 1024,
+  handleEncoder: (enc: JpegEncoder) => void | null = null,
+) {
+  const payload = randomBytesArray(n);
+  const enc = new JpegEncoder(usedBits, encType);
+  const dec = new JpegDecoder(usedBits, decType);
+  if (handleEncoder) {
+    handleEncoder(enc);
+  }
+  const encoded = await enc.Write(payload.buffer);
+  const decoded = await dec.Read(encoded as ArrayBuffer, n);
+  expect(decoded).toEqual(payload.buffer);
+}
 
 test("test different usedBits value", async () => {
-  async function test(usedBits) {
-    const n = 10;
-    const payload = randomBytesArray(n);
-
-    const enc = new JpegEncoder(usedBits, EncoderType.jpegjsEncoder);
-    const dec = new JpegDecoder(usedBits, DecoderType.jpegjsDecoder);
-  
-    const encoded = await enc.Write(payload.buffer);
-    const decoded = await dec.Read(encoded as ArrayBuffer, n);
-    expect(new Uint8Array(decoded)).toEqual(payload);
+  async function test(usedBits: UsedBits) {
+    EncDecLoop(EncoderType.jpegjsEncoder, DecoderType.jpegjsDecoder, usedBits, 10);
   }
 
-  for (let i = 1; i <= 6; i++) {
-    for (let j = i; j <= 6; j++) {
-      const usedBits = new UsedBits(i, j);
-      await test(usedBits);
-    }
-  }
+  await Promise.all(_.flattenDeep(_.range(1, 6).map((i) => {
+    return _.range(i, 6).map((j) => {
+      return new UsedBits(i, j);
+    })
+  })).map((usedBits) => test(usedBits)));
 });
 
-test("jpegjsEncoder & wasmEncoder should produce same result", async () => {
+test("different encoders & decoders should be compatible", async () => {
   const usedBits = UsedBits.fromNumber(4);
-  const n = 1024 * 1024;
-  const payload = randomBytesArray(n);
 
-  const jpegjsEnc = new JpegEncoder(usedBits, EncoderType.jpegjsEncoder);
-  const wasmEnc = new JpegEncoder(usedBits, EncoderType.wasmEncoder);
-  
-  const jpegjsEncoded = await jpegjsEnc.Write(payload.buffer);
-  const wasmEncoded = await wasmEnc.Write(payload.buffer);
+  const encoders = [
+    EncoderType.jpegjsEncoder,
+    EncoderType.wasmEncoder,
+  ];
+  const decoders = [
+    DecoderType.jpegjsDecoder,
+    DecoderType.wasmDecoder,
+  ]
+  await Promise.all(_.flattenDeep(encoders.map((encType) => {
+    return decoders.map((decType) => {
+      return EncDecLoop(encType, decType, usedBits);
+    });
+  })));
+});
 
-  const dec = new JpegDecoder(usedBits, DecoderType.jpegjsDecoder);
-  const jpegjsDecoded = await dec.Read(jpegjsEncoded as ArrayBuffer, n);
-  const wasmDecoded = await dec.Read(wasmEncoded as ArrayBuffer, n);
-  expect(jpegjsDecoded).toEqual(wasmDecoded);
+test("encoder should work with different payload sizes", async () => {
+  const usedBits = UsedBits.fromNumber(4);
+  const payloadSizes = [0, 1, 10, 100, 1000, 1024 * 10, 1024 * 100, 1024 * 1024];
+  await Promise.all(payloadSizes.map((n) => {
+    return EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, usedBits, n);
+  }));
+});
+
+test("photo mask demands usedBits's from to be greater than 1", async () => {
+  await expect(async () => {
+    await EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, new UsedBits(1, 4), 1024, (enc) => {
+      enc.setMaskPhotoFilePath(MASK_PHOTO_FILE_PATH);
+    });
+  }).rejects.toThrow(/.*should be greater than 1.*/);
+})
+
+test("encoder maskPhotoFilePath should work", async () => {
+  const usedBits = new UsedBits(2, 4);
+  await EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, usedBits, 1024, (enc) => {
+    enc.setMaskPhotoFilePath(MASK_PHOTO_FILE_PATH);
+  });
 });
