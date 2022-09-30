@@ -1,29 +1,11 @@
-import { EncoderType, JpegEncoder } from "../../src/jpeg-encoder/";
-import { DecoderType, JpegDecoder } from "../../src/jpeg-decoder/";
+import { EncoderType } from "../../src/jpeg-encoder/";
+import { DecoderType } from "../../src/jpeg-decoder/";
 import { UsedBits } from '../../src/bits-manipulation';
-import { randomBytesArray, BufferToArrayBuffer } from "../../src/utils";
+import { EncDecLoop } from "../general"
 import _ from "lodash";
 import path from "path";
 
 const MASK_PHOTO_FILE_PATH = path.join(__dirname, "../../image_templates/mask_400px.jpg");
-
-async function EncDecLoop(
-  encType: EncoderType,
-  decType: DecoderType,
-  usedBits: UsedBits,
-  n: number = 1024,
-  handleEncoder: (enc: JpegEncoder) => void | null = null,
-) {
-  const payload = randomBytesArray(n);
-  const enc = new JpegEncoder(usedBits, encType);
-  const dec = new JpegDecoder(usedBits, decType);
-  if (handleEncoder) {
-    handleEncoder(enc);
-  }
-  const encoded = await enc.Write(payload.buffer);
-  const decoded = await dec.Read(encoded as ArrayBuffer, n);
-  expect(decoded).toEqual(payload.buffer);
-}
 
 test("test different usedBits value", async () => {
   async function test(usedBits: UsedBits) {

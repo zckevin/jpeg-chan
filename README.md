@@ -1,6 +1,15 @@
 [![Tests](https://github.com/zckevin/weibo-jpeg-channel/actions/workflows/testing.yml/badge.svg)](https://github.com/zckevin/weibo-jpeg-channel/actions/workflows/testing.yml)
 
 
+## Update protocol/protobuf
+
+- npm run build:pb
+
+## Run tests
+
+- jest: encoder/decoder tests on Node.js
+- karma: encoder/decoder tests on browser
+
 ## Inspect decoder perf in chrome
 
 1. write test in //tests/e2e/

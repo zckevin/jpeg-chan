@@ -1,15 +1,16 @@
-import { JpegEncoder } from "../../src/jpeg-encoder/index";
-import { DecoderType, JpegDecoder } from "../../src/jpeg-decoder/index";
-import { randomBytesArray } from "../../src/utils";
+import { EncoderType } from "../../src/jpeg-encoder/index";
+import { DecoderType } from "../../src/jpeg-decoder/index";
 import * as jpegjsDecoder from "../../src/jpeg-decoder/jpegjs-decoder";
 import * as browserDecoder from "../../src/jpeg-decoder/browser-decoder";
-
-import loadJpegForTesting from "./load-jpeg";
 import { UsedBits } from "../../src/bits-manipulation";
+import loadJpegForTesting from "./load-jpeg";
+import { EncDecLoop } from "../general"
+import _ from "lodash";
+
 const IMAGE_FILE = loadJpegForTesting();
 
 describe("Check JPEG decoders", () => {
-  it("browserDecoder & jpegjsDecoder should produce same result", async () => {
+  it("browserDecoder and jpegjsDecoder should produce same result", async () => {
     const resp = await fetch(IMAGE_FILE.url);
     const imageAb = await resp.arrayBuffer();
     
@@ -25,35 +26,21 @@ describe("Check JPEG decoders", () => {
   });
 });
 
-describe("Check encoders & decoders loop", () => {
-  const n = 1024 * 1024;
+it("different encoders & decoders should be compatible", async () => {
   const usedBits = UsedBits.fromNumber(4);
-  const payload = randomBytesArray(n);
-  
-  it("jpegjsEncoder & jpegjsDecoder", async () => {
-    const enc = new JpegEncoder(usedBits);
-    const encoded = await enc.Write(payload.buffer);
 
-    const dec = new JpegDecoder(usedBits, DecoderType.jpegjsDecoder);
-    const decoded = await dec.Read(encoded as ArrayBuffer, n);
-    expect(new Uint8Array(decoded)).toEqual(payload);
-  });
-
-  it("jpegjsEncoder & browserDecoder", async () => {
-    const enc = new JpegEncoder(usedBits);
-    const encoded = await enc.Write(payload.buffer);
-
-    const dec = new JpegDecoder(usedBits, DecoderType.browserDecoder);
-    const decoded = await dec.Read(encoded as ArrayBuffer, n);
-    expect(new Uint8Array(decoded)).toEqual(payload);
-  });
-
-  it("jpegjsEncoder & wasmDecoder", async () => {
-    const enc = new JpegEncoder(usedBits);
-    const encoded = await enc.Write(payload.buffer);
-
-    const dec = new JpegDecoder(usedBits, DecoderType.wasmDecoder);
-    const decoded = await dec.Read(encoded as ArrayBuffer, n);
-    expect(new Uint8Array(decoded)).toEqual(payload);
-  });
+  const encoders = [
+    EncoderType.jpegjsEncoder,
+    EncoderType.wasmEncoder,
+  ];
+  const decoders = [
+    DecoderType.browserDecoder,
+    DecoderType.jpegjsDecoder,
+    DecoderType.wasmDecoder,
+  ]
+  await Promise.all(_.flattenDeep(encoders.map((encType) => {
+    return decoders.map((decType) => {
+      return EncDecLoop(encType, decType, usedBits);
+    });
+  })));
 });
