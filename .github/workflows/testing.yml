@@ -18,9 +18,20 @@ jobs:
         git submodule update --init --force --recursive --depth=1
     - uses: actions/setup-node@v2
       with:
-        node-version: '14'
+        node-version: '16'
         cache: 'npm'
-    - run: git submodule sync --recursive
-    - run: npm ci
-    - run: npm run jest
-    # - run: npm run e2e-headless
+    
+    - name: clone jpegjs
+      run: git submodule sync --recursive
+
+    - name: install dependencies
+      run: npm ci
+
+    - name: build should succeed
+      run: npm run build
+
+    - name: run jest tests
+      run: npm run test:jest
+
+    - name: run karma tests
+      run: npm run test:karma:headless
