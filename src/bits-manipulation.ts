@@ -33,6 +33,10 @@ export class UsedBits {
     return new UsedBits(1, n);
   }
 
+  static fromObject(obj: any) {
+    return new UsedBits(obj.from, obj.to);
+  }
+
   length() {
     return this.to - this.from + 1;
   }

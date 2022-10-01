@@ -3,6 +3,7 @@ import { UsedBits } from "./bits-manipulation";
 import { EncoderType } from "./jpeg-encoder/index";
 import { DecoderType } from "./jpeg-decoder/index";
 import { SinkType } from "./sinks/base";
+import { AbortSignal } from "fetch-h2";
 
 export class CipherConfig {
   constructor(
@@ -42,7 +43,8 @@ export class SinkUploadConfig extends ConfigBase {
       this.usedBits,
       this.cipherConfig,
       this.concurrency,
-      DecoderType.wasmDecoder
+      DecoderType.wasmDecoder,
+      null,
     );
   }
 }
@@ -53,11 +55,16 @@ export class SinkDownloadConfig extends ConfigBase {
     cipherConfig: CipherConfig,
     concurrency: number,
     public decoderType: DecoderType,
+    public signal: AbortSignal,
   ) {
     super(usedBits, cipherConfig, concurrency);
   }
 
-  cloneWithNewUsedBits(usedBits: UsedBits) {
-    return new SinkDownloadConfig(usedBits, this.cipherConfig, this.concurrency, this.decoderType);
+  cloneWithUsedBits(usedBits: UsedBits) {
+    return new SinkDownloadConfig(usedBits, this.cipherConfig, this.concurrency, this.decoderType, this.signal);
+  }
+
+  cloneWithSignal(signal: AbortSignal) {
+    return new SinkDownloadConfig(this.usedBits, this.cipherConfig, this.concurrency, this.decoderType, signal);
   }
 }

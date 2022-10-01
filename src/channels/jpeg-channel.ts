@@ -16,7 +16,7 @@ export class JpegChannel {
     } else if (usedBits instanceof UsedBits) {
       this.usedBits = usedBits;
     } else {
-      assertNotReached(`Invalid usedBits value: ${usedBits}`);
+      assertNotReached(`Invalid usedBits value: ${JSON.stringify(usedBits)}`);
     }
   }
 

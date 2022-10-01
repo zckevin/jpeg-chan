@@ -1,7 +1,9 @@
 const merge = require("webpack-merge");
+
 const fullConfig = require("./packages/jpeg-channel-full/webpack.common.cjs");
 const browserDecoderConfig = require("./packages/jpeg-channel-browser-decoder/webpack.common.cjs");
 const wasmDecoderConfig = require("./packages/jpeg-channel-wasm-decoder/webpack.common.cjs");
+const workerConfig = require("./src/workers/webpack.config.cjs");
 
 const moduleConfig = {
   rules: [
@@ -27,16 +29,18 @@ const moduleConfig = {
   ],
 };
 
+const configs = [fullConfig, browserDecoderConfig, wasmDecoderConfig, workerConfig].map((config) => merge(config, {
+  module: moduleConfig,
+  resolve: {
+    modules: ['node_modules'],
+    extensions: ['.js', '.jsx', '.tsx', '.ts', '.json', ".wasm"],
+  },
+  output: {
+    clean: true,
+  }
+}))
+
 module.exports = {
-  configs: [fullConfig, browserDecoderConfig, wasmDecoderConfig].map((config) => merge(config, {
-    module: moduleConfig,
-    resolve: {
-      modules: ['node_modules'],
-      extensions: ['.js', '.jsx', '.tsx', '.ts', '.json'],
-    },
-    output: {
-      clean: true,
-    }
-  })),
+  configs,
   moduleConfig,
 }

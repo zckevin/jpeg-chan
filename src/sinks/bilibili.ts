@@ -8,7 +8,7 @@ import https from "https";
 import { Buffer } from "buffer";
 import { BasicSink, SinkType } from "./base";
 import { UsedBits } from "../bits-manipulation";
-import { SinkUploadConfig } from "../config";
+import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { range, sample } from "lodash";
 import { NodeH2Fetch } from "./http";
 
@@ -89,8 +89,8 @@ export class BilibiliSink extends BasicSink {
     );
   }
 
-  async DoNodeDownload(url: string) {
-    return NodeH2Fetch(this.getRandomImageUrl(url));
+  async DoNodeDownload(url: string, config: SinkDownloadConfig) {
+    return NodeH2Fetch(this.getRandomImageUrl(url), config.signal);
   }
 
   ExpandIDToUrl(id: string) {

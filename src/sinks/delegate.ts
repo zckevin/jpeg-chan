@@ -4,7 +4,14 @@ import _ from "lodash";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { PbFileChunk } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
-import { Observable } from "rxjs"
+import { Observable, map, toArray, firstValueFrom } from "rxjs";
+import { AbortController } from "fetch-h2";
+import { WorkerPool } from "../workers";
+
+interface WorkerTask {
+  ab: ArrayBuffer;
+  index: number;
+}
 
 class SinkDelegate {
   private sinks = [
@@ -37,24 +44,55 @@ class SinkDelegate {
       this.getSink(config.sinkType) :
       _.sample(this.sinks);
     return {
-      url: await sink.Upload(original, config),
+      url: await sink.UploadBuffer(original, config),
       usedBits: config.usedBits || sink.DEFAULT_USED_BITS,
     }
   }
 
-  async DownloadSingeFile(chunk: PbFileChunk, config: SinkDownloadConfig) {
+  async DownloadSingleFile(chunk: PbFileChunk, config: SinkDownloadConfig) {
     return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
   }
 
   async DownloadMultipleFiles(chunks: PbFileChunk[], config: SinkDownloadConfig) {
-    const ob = new Observable<ArrayBuffer>((observer) => {
+    const abortCtr = new AbortController();
+    const usedConfig = config.cloneWithSignal(abortCtr.signal);
+    const pool = new WorkerPool();
+
+    const onError = async (err: any) => {
+      console.log("Error in worker pool", err);
+      abortCtr.abort();
+      await pool.destroy();
+    }
+    const source$ = new Observable<WorkerTask>((observer) => {
       (async () => {
-        for (const chunk of chunks) {
-          observer.next(await this.DownloadSingeFile(chunk, config));
-        }
-        observer.complete();
+        const promises = chunks.map(async (chunk, index) => {
+          const sink = this.getSink(chunk.url)
+          observer.next({
+            index,
+            ab: await sink.DownloadRawData(chunk.url, usedConfig),
+          });
+        });
+        Promise.all(promises)
+          .then(() => {
+            observer.complete()
+          })
+          .catch((err) => {
+            onError(err);
+            observer.error(err)
+          });
       })();
-    });
+    }).pipe(
+      map(async (task: WorkerTask) => {
+        return {
+          ab: await pool.DecodeDecrypt(task.ab, chunks[task.index].size, usedConfig.usedBits, usedConfig),
+          index: task.index,
+        }
+      }),
+      toArray(),
+    );
+    const result = await firstValueFrom(source$);
+    console.log(result);
+    await pool.destroy();
   }
 
   GetTypeAndID(url: string) {

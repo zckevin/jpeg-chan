@@ -8,15 +8,15 @@ import { sinkDelegate } from "./sinks/delegate";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import {
   PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk,
-} from "../protobuf/gen/protobuf/v1/jpeg_file";
+} from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { DecoderType } from './jpeg-decoder/index';
 import { EncoderType } from './jpeg-encoder/index';
 import { SinkType } from './sinks/base';
 import { Task } from './tasker';
+import { NewCipherConfigFromPassword } from "./encryption"
 
 // const BOOTLOADER_APPROXIMATELY_SIZE = 256;
-const BOOTLOADER_SCRYPT_SALT = "tF%L6uPTJ5^hI%n63s0b";
 
 class BaseFile {
   constructor() { }
@@ -38,7 +38,7 @@ class BaseFile {
   }
 
   async download<T extends UnknownMessage>(msgTyp: MessageType, chunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const buf = await sinkDelegate.DownloadSingeFile(chunk, downloadConfig)
+    const buf = await sinkDelegate.DownloadSingleFile(chunk, downloadConfig)
     return msgTyp.decode(buf) as T;
   }
 }
@@ -72,9 +72,9 @@ class IndexFile extends BaseFile {
     console.log("IndexFile", indexFile);
     const n_chunks = indexFile.chunks.length;
     const tasks = indexFile.chunks.map((chunk, index) => async () => {
-      const result = await sinkDelegate.DownloadSingeFile(
+      const result = await sinkDelegate.DownloadSingleFile(
         chunk,
-        downloadConfig.cloneWithNewUsedBits(UsedBits.fromString(chunk.usedBits)),
+        downloadConfig.cloneWithUsedBits(UsedBits.fromString(chunk.usedBits)),
       );
       console.log(`Tasker: finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
       return result;
@@ -148,6 +148,7 @@ class BootloaderFile extends BaseFile {
       new CipherConfig("aes-128-gcm", Buffer.from(blFile.aesKey), Buffer.from(blFile.aesIv)),
       downloadConfig.concurrency,
       DecoderType.wasmDecoder, // decoder
+      null, // abort signal
     );
     const indexFile = new IndexFile();
     return await indexFile.DownloadAllChunks(blFile.indexFileHead!, dataDownloadConfig);
@@ -192,10 +193,9 @@ export class UploadFile {
     this.n_chunks = Math.ceil(fileSize / chunkSize);
     this.lastChunkSize = fileSize % chunkSize;
 
-    const scryptBuf = crypto.scryptSync(this.blPassword, BOOTLOADER_SCRYPT_SALT, 28);
     this.blUploadConfig = new SinkUploadConfig(
       null, // usedBits
-      new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
+      NewCipherConfigFromPassword(this.blPassword),
       concurrency,
       validate,
       "", // maskPhotoFilePath
@@ -268,12 +268,12 @@ export class DownloadFile {
     this.blDesc = PbBootloaderDescription.decode(buf);
     console.log(this.blDesc);
 
-    const scryptBuf = crypto.scryptSync(this.blDesc.password, BOOTLOADER_SCRYPT_SALT, 28);
     this.blDownloadConfig = new SinkDownloadConfig(
       UsedBits.fromString(this.blDesc.usedBits), // usedBits
-      new CipherConfig("aes-128-gcm", scryptBuf.subarray(0, 16), scryptBuf.subarray(16, 28)),
+      NewCipherConfigFromPassword(this.blDesc.password),
       concurrency,
       DecoderType.wasmDecoder,
+      null, // abort signal
     );
   }
 
