@@ -9,6 +9,8 @@ import { Buffer } from "buffer";
 import { BasicSink, SinkType } from "./base";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig } from "../config";
+import { range, sample } from "lodash";
+import { NodeH2Fetch } from "./http";
 
 dotenv.config();
 
@@ -34,13 +36,13 @@ async function upload(ab: ArrayBuffer): Promise<string> {
       host: 'api.vc.bilibili.com',
       path: '/api/v1/drawImage/upload',
       headers: headers,
-    }, function(res) {
-      let str='';
-      res.on('data',function(buffer){
-          str += buffer; // 用字符串拼接
-        }
+    }, function (res) {
+      let str = '';
+      res.on('data', function (buffer) {
+        str += buffer; // 用字符串拼接
+      }
       );
-      res.on('end',()=>{
+      res.on('end', () => {
         const result = JSON.parse(str);
         const { message: msg, data } = result;
         if (msg === '0') {
@@ -62,11 +64,13 @@ async function upload(ab: ArrayBuffer): Promise<string> {
 
 export class BilibiliSink extends BasicSink {
   constructor() {
-    super();
-    this.MIN_UPLOAD_BUFFER_SIZE = 200;
-    this.DEFAULT_USED_BITS = new UsedBits(1, 5);
-    this.regex = /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/;
-    this.type = SinkType.bilibili;
+    super(
+      200,
+      new UsedBits(1, 5),
+      /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/,
+      SinkType.bilibili
+    );
+    this.supportsHTTP2 = true;
   }
 
   async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig) {
@@ -77,6 +81,16 @@ export class BilibiliSink extends BasicSink {
     //   `${url}`, // original
     // ]
     return url;
+  }
+
+  getRandomImageUrl(url: string) {
+    return url.replace(
+      "i0", `i${sample(range(0, 4))}`
+    );
+  }
+
+  async DoNodeDownload(url: string) {
+    return NodeH2Fetch(this.getRandomImageUrl(url));
   }
 
   ExpandIDToUrl(id: string) {

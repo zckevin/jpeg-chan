@@ -9,7 +9,7 @@ import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import {
   PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk,
 } from "../protobuf/gen/protobuf/v1/jpeg_file";
-import { messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
+import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { DecoderType } from './jpeg-decoder/index';
 import { EncoderType } from './jpeg-encoder/index';
 import { SinkType } from './sinks/base';
@@ -37,10 +37,9 @@ class BaseFile {
     return this.uploadBuffer(buf, uploadConfig);
   }
 
-  async download<T extends UnknownMessage>(filePointer: PbFileChunk, downloadConfig: SinkDownloadConfig): Promise<T> {
-    // const buf = await sinkDelegate.Download(filePointer.url, filePointer.size, downloadConfig)
-    // return this.pbClass.decode(buf);
-    return null as any;
+  async download<T extends UnknownMessage>(msgTyp: MessageType, chunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    const buf = await sinkDelegate.DownloadSingeFile(chunk, downloadConfig)
+    return msgTyp.decode(buf) as T;
   }
 }
 
@@ -68,14 +67,13 @@ class IndexFile extends BaseFile {
     return chunk;
   }
 
-  async Download(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const indexFile = await this.download<PbIndexFile>(indexFilePointer, downloadConfig);
+  async DownloadAllChunks(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
     console.log("IndexFile", indexFile);
     const n_chunks = indexFile.chunks.length;
     const tasks = indexFile.chunks.map((chunk, index) => async () => {
-      const result = await sinkDelegate.Download(
-        chunk.url,
-        chunk.size,
+      const result = await sinkDelegate.DownloadSingeFile(
+        chunk,
         downloadConfig.cloneWithNewUsedBits(UsedBits.fromString(chunk.usedBits)),
       );
       console.log(`Tasker: finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
@@ -142,7 +140,7 @@ class BootloaderFile extends BaseFile {
   }
 
   async Download(blFileChunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const blFile = await this.download<PbBootloaderFile>(blFileChunk, downloadConfig);
+    const blFile = await this.download<PbBootloaderFile>(PbBootloaderFile, blFileChunk, downloadConfig);
     this.blFile = blFile;
     console.log(blFile);
     const dataDownloadConfig = new SinkDownloadConfig(
@@ -152,7 +150,7 @@ class BootloaderFile extends BaseFile {
       DecoderType.wasmDecoder, // decoder
     );
     const indexFile = new IndexFile();
-    return await indexFile.Download(blFile.indexFileHead!, dataDownloadConfig);
+    return await indexFile.DownloadAllChunks(blFile.indexFileHead!, dataDownloadConfig);
   }
 }
 
@@ -178,7 +176,7 @@ export class UploadFile {
     public concurrency: number,
     public validate: boolean,
     public fs = realfs /* support memfs inject */,
-    public sinkType: SinkType = SinkType.random,
+    public sinkType: SinkType = SinkType.unknown,
   ) {
     assert(chunkSize > 0);
 

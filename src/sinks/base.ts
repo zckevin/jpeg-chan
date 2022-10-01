@@ -5,11 +5,12 @@ import { DecoderType, JpegDecoder, Decoder } from "../jpeg-decoder/index";
 import { assert } from "../assert";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
+import { isNode } from "browser-or-node";
 
 const AES_GCM_AUTH_TAG_LENGTH = 16;
 
 export enum SinkType {
-  random = 1,
+  unknown = 0,
   weibo,
   bilibili,
 }
@@ -18,12 +19,14 @@ export class BasicSink {
   private cachedEncoders: Map<string, JpegEncoder> = new Map();
   private cachedDecoders: Map<string, JpegDecoder> = new Map();
 
-  public MIN_UPLOAD_BUFFER_SIZE = 0;
-  public DEFAULT_USED_BITS: UsedBits;
-  public regex: RegExp;
-  public type: SinkType = SinkType.random;
+  protected supportsHTTP2 = false;
 
-  constructor() { }
+  constructor(
+    public MIN_UPLOAD_BUFFER_SIZE: number,
+    public DEFAULT_USED_BITS: UsedBits,
+    public regex: RegExp,
+    public type: SinkType,
+  ) { }
 
   getEncoder(usedBits: UsedBits, encoderType: EncoderType) {
     let enc: JpegEncoder;
@@ -102,8 +105,16 @@ export class BasicSink {
     return url;
   }
 
-  async Download(url: string, size: number, config: SinkDownloadConfig) {
-    const ab = await fetch(url).then(res => res.arrayBuffer());
+  async Download(url: string, config: SinkDownloadConfig) {
+    // TODO: merge this
+    if (isNode) {
+      return await this.DoNodeDownload(url);
+    } else {
+      return await fetch(url).then(res => res.arrayBuffer());
+    }
+  }
+
+  async DecodeDecrypt(ab: ArrayBuffer, size: number, config: SinkDownloadConfig) {
     const dec = this.getDecoder(
       config.usedBits || this.DEFAULT_USED_BITS,
       config.decoderType || DecoderType.wasmDecoder
@@ -117,8 +128,13 @@ export class BasicSink {
     return this.decryptBuffer(Buffer.from(decoded), config.cipherConfig);
   }
 
+  async DownloadDecodeDecrypt(url: string, size: number, config: SinkDownloadConfig) {
+    const ab = await this.Download(url, config);
+    return await this.DecodeDecrypt(ab, size, config);
+  }
+
   async validate(original: ArrayBuffer, url: string, config: SinkDownloadConfig) {
-    const decoded = await this.Download(url, original.byteLength, config);
+    const decoded = await this.DownloadDecodeDecrypt(url, original.byteLength, config);
     for (let i = 0; i < original.byteLength; i++) {
       if (original[i] !== decoded[i]) {
         console.log("mismatch", original, url, decoded)
@@ -144,6 +160,10 @@ export class BasicSink {
   }
 
   protected async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig): Promise<string> {
+    throw new Error("Not implemented");
+  }
+
+  protected async DoNodeDownload(url: string): Promise<ArrayBuffer> {
     throw new Error("Not implemented");
   }
 

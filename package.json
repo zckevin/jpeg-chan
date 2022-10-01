@@ -14,6 +14,7 @@
     "commander": "^8.3.0",
     "debug": "^4.3.2",
     "dotenv": "^10.0.0",
+    "fetch-h2": "^3.0.2",
     "form-data": "^3.0.1",
     "lodash": "^4.17.21",
     "memfs": "^3.4.7",
@@ -22,6 +23,7 @@
     "protobufjs": "^7.0.0",
     "protobufjs-cli": "^1.0.0",
     "read-chunk": "^4.0.2",
+    "rxjs": "^7.5.7",
     "sharp": "^0.30.7",
     "ts-proto": "^1.126.1"
   },

@@ -2,7 +2,9 @@ import { WeiboSink } from "./weibo";
 import { BilibiliSink } from "./bilibili";
 import _ from "lodash";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { BasicSink } from "./base";
+import { PbFileChunk } from "../../protobuf";
+import { BasicSink, SinkType } from "./base";
+import { Observable } from "rxjs"
 
 class SinkDelegate {
   private sinks = [
@@ -12,35 +14,51 @@ class SinkDelegate {
 
   constructor() { }
 
-  async Upload(original: Buffer, config: SinkUploadConfig) {
+  private getSink(matcher: string | SinkType): BasicSink {
     let sink: BasicSink;
-    if (config.sinkType) {
-      sink = _.find(this.sinks, (s: BasicSink) => s.type === config.sinkType)!;
-      if (!sink) {
-        throw new Error(`No sink found for type: ${config.sinkType}`);
-      }
-    } else {
-      sink = _.sample(this.sinks)!;
+    switch (typeof matcher) {
+      case "string":
+        sink = _.find(this.sinks, (s: BasicSink) => s.match(matcher));
+        break;
+      case "number":
+        sink = _.find(this.sinks, (s: BasicSink) => s.type === matcher);
+        break;
+      default:
+        throw new Error("Invalid matcher");
     }
+    if (!sink) {
+      throw new Error(`No sink found for ${matcher}`);
+    }
+    return sink;
+  }
+
+  async Upload(original: Buffer, config: SinkUploadConfig) {
+    const sink = (config.sinkType !== SinkType.unknown) ?
+      this.getSink(config.sinkType) :
+      _.sample(this.sinks);
     return {
       url: await sink.Upload(original, config),
       usedBits: config.usedBits || sink.DEFAULT_USED_BITS,
     }
   }
 
-  async Download(url: string, size: number, config: SinkDownloadConfig) {
-    const sink = _.find(this.sinks, (s: BasicSink) => s.match(url));
-    if (!sink) {
-      throw new Error(`No sink found for url: ${url}`);
-    }
-    return await sink.Download(url, size, config);
+  async DownloadSingeFile(chunk: PbFileChunk, config: SinkDownloadConfig) {
+    return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
+  }
+
+  async DownloadMultipleFiles(chunks: PbFileChunk[], config: SinkDownloadConfig) {
+    const ob = new Observable<ArrayBuffer>((observer) => {
+      (async () => {
+        for (const chunk of chunks) {
+          observer.next(await this.DownloadSingeFile(chunk, config));
+        }
+        observer.complete();
+      })();
+    });
   }
 
   GetTypeAndID(url: string) {
-    const sink = _.find(this.sinks, (s: BasicSink) => s.match(url));
-    if (!sink) {
-      throw new Error(`No sink found for url: ${url}`);
-    }
+    const sink = this.getSink(url);
     return {
       sinkType: sink.type,
       id: sink.getImageIDFromUrl(url),
@@ -48,11 +66,7 @@ class SinkDelegate {
   }
 
   ExpandIDToUrl(type: number, id: string) {
-    const sink = _.find(this.sinks, (s: BasicSink) => s.type === type);
-    if (!sink) {
-      throw new Error(`No sink found for type: ${type}`);
-    }
-    return sink.ExpandIDToUrl(id);
+    return this.getSink(type).ExpandIDToUrl(id);
   }
 }
 
