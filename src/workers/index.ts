@@ -1,9 +1,9 @@
 import { SinkDownloadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
 import { DecodeDecryptParams } from "./params"
-import path from 'path';
-import Tinypool from 'tinypool'
 import { DecoderType } from "../jpeg-decoder";
+import path from 'path';
+import Tinypool from '@zckevin/tinypool-cjs'
 
 export class WorkerPool {
   private poolIdleTimeout = 10_000;

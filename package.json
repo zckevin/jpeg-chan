@@ -11,6 +11,7 @@
   "dependencies": {
     "@saschazar/wasm-image-loader": "^4.0.0",
     "@saschazar/wasm-mozjpeg": "^3.0.0",
+    "@zckevin/tinypool-cjs": "^0.3.0",
     "commander": "^8.3.0",
     "debug": "^4.3.2",
     "dotenv": "^10.0.0",
