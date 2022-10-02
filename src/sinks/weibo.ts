@@ -1,9 +1,12 @@
-import * as https from "https"
-import * as dotenv from "dotenv";
-import fetch from 'node-fetch';
 import { BasicSink, SinkType } from "./base";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig } from "../config";
+import * as https from "https"
+import * as dotenv from "dotenv";
+import fetch from 'node-fetch';
+import debug from 'debug';
+
+const log = debug('jpeg:http:weibo');
 
 // weibo.com old version api
 const UPLOAD_API_URL = "https://picupload.weibo.com/interface/pic_upload.php?data=1&p=1&url=weibo.com&markpos=1&logo=1&marks=0&app=miniblog&s=json&pri=null&file_source=1";
@@ -44,8 +47,8 @@ async function upload(imageBuffer: Buffer) {
   const res = await fetch(UPLOAD_API_URL, options as any);
   const status = res.status;
   const body = await res.json();
+  log("Upload result:", body);
   if (status !== 200) {
-    console.log(body)
     throw new Error(`Weibo: upload failed, response with status code: ${status}`);
   }
   // TODO: Fix this
@@ -53,7 +56,6 @@ async function upload(imageBuffer: Buffer) {
   const pid = body.data.pics.pic_1.pid;
   // @ts-ignore
   if (body.code != "A00006" || !pid) {
-    console.log(body);
     throw new Error("Weibo: invalid response");
   }
   return pid;

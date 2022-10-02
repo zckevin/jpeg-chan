@@ -2,15 +2,18 @@
  * Refer to https://github.com/xlzy520/typora-plugin-bilibili
  */
 
+import { BasicSink, SinkType } from "./base";
+import { UsedBits } from "../bits-manipulation";
+import { SinkUploadConfig, SinkDownloadConfig } from "../config";
+import { NodeH2Fetch } from "./h2fetch";
+import { range, sample } from "lodash";
 import * as dotenv from "dotenv";
 import FormData from "form-data";
 import https from "https";
 import { Buffer } from "buffer";
-import { BasicSink, SinkType } from "./base";
-import { UsedBits } from "../bits-manipulation";
-import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { range, sample } from "lodash";
-import { NodeH2Fetch } from "./h2fetch";
+import debug from 'debug';
+
+const log = debug('jpeg:http:bilibili');
 
 dotenv.config();
 
@@ -44,16 +47,15 @@ async function upload(ab: ArrayBuffer): Promise<string> {
       );
       res.on('end', () => {
         const result = JSON.parse(str);
+        log("Upload result:", result);
         const { message: msg, data } = result;
         if (msg === '0') {
           const url = data.image_url.replace('http', 'https')
           return resolve(url);
         }
-        console.log(result);
         if (msg === '请先登录') {
           console.log('token过期了，请及时更新命令行中的token');
         }
-        console.log(result);
         reject(new Error("Bilibili: upload failed"));
       });
     });

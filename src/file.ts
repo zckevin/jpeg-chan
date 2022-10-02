@@ -14,6 +14,9 @@ import path from 'path';
 import fs from "fs";
 import os from "os";
 import crypto from 'crypto';
+import debug from 'debug';
+
+const debugLogger = debug('jpeg:file');
 
 // const BOOTLOADER_APPROXIMATELY_SIZE = 256;
 
@@ -49,59 +52,61 @@ class RawDataFile extends BaseFile {
 }
 
 class IndexFile extends BaseFile {
+  private log = debugLogger.extend('index');
   constructor() {
     super();
   }
 
-  async GenFileChunk(chunks: PbFileChunk[], uploadConfig: SinkUploadConfig) {
+  async GenIndexFile(chunks: PbFileChunk[], uploadConfig: SinkUploadConfig) {
     const indexFile: PbIndexFile = {
       $type: PbIndexFile.$type,
       chunks: chunks,
       ended: true,
       next: undefined,
     }
-    console.log(indexFile)
+    this.log("Gen from:", indexFile);
     const chunk = await this.upload(indexFile, uploadConfig);
-    console.log("indexFile fileChunk", chunk);
+    this.log("Gen result: ", chunk);
     return chunk;
   }
 
   async DownloadAllChunks(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
     const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-    console.log("IndexFile", indexFile);
+    this.log("DownloadAllChunks from: ", indexFile);
     const n_chunks = indexFile.chunks.length;
     const tasks = indexFile.chunks.map((chunk, index) => async () => {
       const result = await sinkDelegate.DownloadSingleFile(
         chunk,
         downloadConfig.cloneWithUsedBits(UsedBits.fromString(chunk.usedBits)),
       );
-      console.log(`Tasker: finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
+      this.log(`DownloadAllChunks finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
       return result;
     });
     const downloadTasker = new Tasker(tasks, downloadConfig.concurrency);
     await downloadTasker.done;
-    console.log(downloadTasker.results);
+    this.log("DownloadAllChunks results: ", downloadTasker.results);
 
     const fileBuf = Buffer.concat(downloadTasker.results);
     const hash = crypto.createHash("md5");
     hash.update(fileBuf);
-    console.log(hash.digest("hex"));
+    this.log("DownloadAllChunks results md5sum: ", hash.digest("hex"));
     return fileBuf;
   }
 
   async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
     const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-    console.log("IndexFile", indexFile);
+    this.log("DownloadAllChunksWithWorkerPool from: ", indexFile);
     const results = await sinkDelegate.DownloadMultipleFiles(indexFile.chunks, downloadConfig);
     const fileBuf = Buffer.concat(results);
     const hash = crypto.createHash("md5");
     hash.update(fileBuf);
-    console.log(hash.digest("hex"));
+    this.log("DownloadAllChunksWithWorkerPool results md5sum: ", hash.digest("hex"));
     return fileBuf;
   }
 }
 
 class BootloaderFile extends BaseFile {
+  private log = debugLogger.extend('bootloader');
   public blFile: PbBootloaderFile;
 
   constructor() {
@@ -135,7 +140,8 @@ class BootloaderFile extends BaseFile {
       indexFileHead,
     };
     const bootloaderFile = await this.upload(blFile, uploadConfig);
-    console.log(bootloaderFile)
+    this.log("Gen from: ", bootloaderFile);
+
     const { sinkType, id } = sinkDelegate.GetTypeAndID(bootloaderFile.url);
     const blDesc: PbBootloaderDescription = {
       $type: PbBootloaderDescription.$type,
@@ -145,14 +151,15 @@ class BootloaderFile extends BaseFile {
       usedBits: bootloaderFile.usedBits,
       password: blPassword,
     }
-    console.log("bootloaderDesc config", blDesc)
+    this.log("Gen result: ", blDesc);
     return Buffer.from(PbBootloaderDescription.encode(blDesc).finish()).toString('hex');
   }
 
   async Download(blFileChunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    this.log("Bootloader download from: ", blFileChunk);
     const blFile = await this.download<PbBootloaderFile>(PbBootloaderFile, blFileChunk, downloadConfig);
     this.blFile = blFile;
-    console.log(blFile);
+    this.log("Bootloader: ", blFile);
     const dataDownloadConfig = new SinkDownloadConfig(
       UsedBits.fromString(blFile.indexFileHead!.usedBits), // usedBits
       new CipherConfig("aes-128-gcm", Buffer.from(blFile.aesKey), Buffer.from(blFile.aesIv)),
@@ -168,6 +175,8 @@ class BootloaderFile extends BaseFile {
 const realfs = fs;
 
 export class UploadFile {
+  private log = debugLogger.extend('upload');
+
   public fileSize: number;
   public fileName: string;
   public fd: number;
@@ -241,7 +250,7 @@ export class UploadFile {
         }
         const file = new RawDataFile();
         const result = await file.uploadBuffer(chunk, this.dataUploadConfig);
-        console.log(`Tasker: finish upload task ${i}/${this.n_chunks}, size: ${chunk.byteLength}`);
+        this.log(`Finish upload task ${i}/${this.n_chunks}, size: ${chunk.byteLength}`);
         return result;
       }
       tasks.push(fn);
@@ -251,7 +260,7 @@ export class UploadFile {
 
     // step 2. create/upload index file(s)
     const indexFile = new IndexFile();
-    const indexFileHead = await indexFile.GenFileChunk(uploadTasker.results, this.dataUploadConfig);
+    const indexFileHead = await indexFile.GenIndexFile(uploadTasker.results, this.dataUploadConfig);
 
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()
@@ -270,6 +279,8 @@ export class UploadFile {
 }
 
 export class DownloadFile {
+  private log = debugLogger.extend('download');
+
   public blDesc: PbBootloaderDescription;
   public blDownloadConfig: SinkDownloadConfig;
   private blFile: BootloaderFile;
@@ -277,7 +288,7 @@ export class DownloadFile {
   constructor(descHex: string, concurrency: number) {
     const buf = Buffer.from(descHex, "hex");
     this.blDesc = PbBootloaderDescription.decode(buf);
-    console.log(this.blDesc);
+    this.log("Desc: ", this.blDesc);
 
     this.blDownloadConfig = new SinkDownloadConfig(
       UsedBits.fromString(this.blDesc.usedBits), // usedBits
@@ -296,7 +307,6 @@ export class DownloadFile {
       url: sinkDelegate.ExpandIDToUrl(this.blDesc.sinkType, this.blDesc.id),
       usedBits: this.blDesc.usedBits,
     }
-    console.log(blFileChunk)
     const buf = await this.blFile.Download(blFileChunk, this.blDownloadConfig);
     return buf;
   }

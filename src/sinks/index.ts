@@ -6,8 +6,11 @@ import { PbFileChunk } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
 import { WorkerPool } from "../workers";
 import { find, sample } from "lodash";
-import { Observable, mergeMap, toArray, firstValueFrom, from } from "rxjs";
+import { Observable, mergeMap, toArray, firstValueFrom, from, scheduled } from "rxjs";
 import { AbortController } from "fetch-h2";
+import debug from 'debug';
+
+const log = debug('jpeg:sinks');
 
 interface WorkerTask {
   ab: ArrayBuffer;
@@ -46,6 +49,7 @@ class SinkDelegate {
       this.getSink(config.sinkType) :
       sample(this.sinks);
     const usedConfig = config.usedBits ? config : config.cloneWithUsedBits(sink.DEFAULT_USED_BITS);
+    log("upload with config", usedConfig);
     return {
       url: await sink.UploadBuffer(original, usedConfig),
       usedBits: usedConfig.usedBits,
@@ -53,6 +57,7 @@ class SinkDelegate {
   }
 
   async DownloadSingleFile(chunk: PbFileChunk, config: SinkDownloadConfig) {
+    log("download with config", config);
     return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
   }
 
@@ -83,6 +88,8 @@ class SinkDelegate {
     const pool = new WorkerPool();
     const abortCtr = new AbortController();
     const usedConfig = config.cloneWithSignal(abortCtr.signal);
+    log("download multiple with config", usedConfig);
+
     const onError = async (err: any) => {
       console.error("Error in worker pool", err);
       abortCtr.abort();
@@ -99,7 +106,6 @@ class SinkDelegate {
       toArray(),
     );
     const result = await firstValueFrom(source$);
-    console.log(result);
     await pool.destroy();
     return result.sort((a, b) => a.index - b.index).map((r) => r.ab);
   }

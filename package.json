@@ -13,7 +13,7 @@
     "@saschazar/wasm-mozjpeg": "^3.0.0",
     "@zckevin/tinypool-cjs": "^0.3.0",
     "commander": "^8.3.0",
-    "debug": "^4.3.2",
+    "debug": "^4.3.4",
     "dotenv": "^10.0.0",
     "fetch-h2": "^3.0.2",
     "form-data": "^3.0.1",
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@types/assert": "^1.5.6",
+    "@types/debug": "^4.1.7",
     "@types/emscripten": "^1.39.6",
     "@types/jest": "^29.1.1",
     "@types/lodash": "^4.14.186",

@@ -12,7 +12,6 @@ function padBuffer(buf: Buffer, minUploadSize: number) {
   const result = Buffer.concat([
     buf, crypto.randomBytes(this.MIN_UPLOAD_BUFFER_SIZE - buf.length)
   ]);
-  // console.log("padding", buf, result)
   return result;
 }
 

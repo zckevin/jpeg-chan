@@ -3,6 +3,9 @@ import { JpegChannel } from "../channels/jpeg-channel";
 import { serialize, UsedBits, keepMostSignificantNBits } from "../bits-manipulation";
 import { SinkUploadConfig } from "../config";
 import jpegjs from "../jpeg-js/index.js";
+import debug from 'debug';
+
+const log = debug('jpeg:encoder');
 
 export enum EncoderType {
   jpegjsEncoder = 1,
@@ -45,7 +48,7 @@ export class JpegEncoder extends JpegChannel {
   constructor(usedBits: UsedBits, encoderType = EncoderType.jpegjsEncoder) {
     super(usedBits);
     this.encoderType = encoderType;
-    console.log("Use encoder:", this.encoderType);
+    log("Use encoder:", EncoderType[this.encoderType]);
   }
 
   cacluateSquareImageWidth(byteLength: number) {
@@ -150,7 +153,7 @@ export class JpegEncoder extends JpegChannel {
     }
     const serialized = serialize(new Uint8Array(ab), this.usedBits);
     const width = this.cacluateSquareImageWidth(serialized.byteLength);
-    console.log("target image width: ", width);
+    log("target image width:", width);
 
     const nextPhotoMaskByteFn = await this.caculateMaskPhoto(this.maskPhotoFilePath, width);
     const targetImageData = this.generateTargetImageData(width, serialized, nextPhotoMaskByteFn);
@@ -178,7 +181,6 @@ export async function EncodeBuffer(ab: ArrayBuffer, usedBits: UsedBits, config: 
     config.usedBits,
     config.encoderType || EncoderType.jpegjsEncoder,
   );
-  console.log("config", config)
   if (config.maskPhotoFilePath) {
     enc.setMaskPhotoFilePath(config.maskPhotoFilePath);
   }
