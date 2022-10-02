@@ -1,20 +1,19 @@
-import path from 'path';
-import fs from "fs";
-import crypto from 'crypto';
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
 import { Tasker } from "./tasker";
 import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import {
-  PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk,
-} from "../protobuf";
+import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { DecoderType } from './jpeg-decoder/index';
 import { EncoderType } from './jpeg-encoder/index';
 import { SinkType } from './sinks/base';
 import { Task } from './tasker';
 import { NewCipherConfigFromPassword } from "./encryption"
+import path from 'path';
+import fs from "fs";
+import os from "os";
+import crypto from 'crypto';
 
 // const BOOTLOADER_APPROXIMATELY_SIZE = 256;
 
@@ -305,7 +304,7 @@ export class DownloadFile {
   async SaveToFile(outputFilePath: string) {
     const buf = await this.Download();
     if (!outputFilePath) {
-      outputFilePath = path.join("/tmp", this.blFile.blFile.fileName);
+      outputFilePath = path.join(os.tmpdir(), this.blFile.blFile.fileName);
     }
     fs.writeFileSync(outputFilePath, buf);
   }
