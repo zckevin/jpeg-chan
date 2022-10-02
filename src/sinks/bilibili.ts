@@ -10,7 +10,7 @@ import { BasicSink, SinkType } from "./base";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { range, sample } from "lodash";
-import { NodeH2Fetch } from "./http";
+import { NodeH2Fetch } from "./h2fetch";
 
 dotenv.config();
 

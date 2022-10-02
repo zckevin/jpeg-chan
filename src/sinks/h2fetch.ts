@@ -55,6 +55,20 @@ class NodeH2Client {
     }
     return await resp.arrayBuffer();
   }
+
+  enableSelfSignedCert() {
+    this.ctx = context({
+      userAgent: defaultFetchConfig.user_agent,
+      overwriteUserAgent: true,
+      session: {
+        rejectUnauthorized: false,
+      }
+    });
+  }
+
+  async disconnectAll() {
+    await this.ctx.disconnectAll();
+  }
 }
 
 export const defaultNodeH2Client = new NodeH2Client();
