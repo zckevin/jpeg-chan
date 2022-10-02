@@ -5,6 +5,7 @@ import { UsedBits } from '../bits-manipulation';
 import { isNode } from "browser-or-node";
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
 import { EncodeBuffer, DecodeBuffer } from '../encoder-decoder';
+import { DecoderType } from '../jpeg-decoder';
 
 export enum SinkType {
   unknown = 0,
@@ -54,7 +55,7 @@ export class BasicSink {
       ab,
       size,
       config.usedBits || this.DEFAULT_USED_BITS,
-      config,
+      config.decoderType || DecoderType.wasmDecoder,
     );
     return DecryptBuffer(Buffer.from(decoded), config.cipherConfig);
   }

@@ -1,7 +1,9 @@
-import Tinypool from 'tinypool'
 import { SinkDownloadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
+import { DecodeDecryptParams } from "./params"
 import path from 'path';
+import Tinypool from 'tinypool'
+import { DecoderType } from "../jpeg-decoder";
 
 export class WorkerPool {
   private poolIdleTimeout = 10_000;
@@ -10,8 +12,6 @@ export class WorkerPool {
     idleTimeout: this.poolIdleTimeout,
   })
 
-  constructor() { }
-
   async DecodeDecrypt(
     ab: ArrayBuffer,
     read_n: number,
@@ -19,11 +19,14 @@ export class WorkerPool {
     config: SinkDownloadConfig,
     dryRun: boolean = false,
   ): Promise<Buffer> {
-    // wasmDecoder uses memeory from wasm which is not transferable
-    const abCopy = ab.slice(0);
-    return await this.pool.run({
-      ab: abCopy, read_n, usedBits, config, dryRun,
-    })
+    const params: DecodeDecryptParams = {
+      // wasmDecoder uses memeory from wasm which is not transferable
+      ab: ab.slice(0),
+      decoderType: config.decoderType || DecoderType.wasmDecoder,
+      cipherConfig: config.cipherConfig,
+      read_n, usedBits, dryRun,
+    }
+    return await this.pool.run(params);
   }
 
   async destroy() {

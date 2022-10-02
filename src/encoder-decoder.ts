@@ -31,11 +31,8 @@ function getDecoder(usedBits: UsedBits, decoderType: DecoderType) {
   return dec;
 }
 
-export async function DecodeBuffer(ab: ArrayBuffer, read_n: number, usedBits: UsedBits, config: SinkDownloadConfig) {
-  const dec = getDecoder(
-    usedBits,
-    config.decoderType || DecoderType.wasmDecoder
-  );
+export async function DecodeBuffer(ab: ArrayBuffer, read_n: number, usedBits: UsedBits, decoderType: DecoderType) {
+  const dec = getDecoder(usedBits, decoderType);
   return await dec.Read(ab, read_n + AES_GCM_AUTH_TAG_LENGTH);
 }
 

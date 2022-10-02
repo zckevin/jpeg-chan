@@ -1,23 +1,13 @@
 import { DecodeBuffer } from '../encoder-decoder';
-import { SinkDownloadConfig } from "../config";
 import { DecryptBuffer } from "../encryption"
 import { UsedBits } from '../bits-manipulation';
-
-interface DecodeDecryptParams {
-  ab: ArrayBuffer,
-  read_n: number,
-  usedBits: UsedBits,
-  config: SinkDownloadConfig,
-  dryRun: boolean,
-}
+import { DecodeDecryptParams } from "./params"
 
 export default async function DecodeDecrypt(params: DecodeDecryptParams) {
-  const { ab, read_n, usedBits, config, dryRun } = params;
+  const { ab, read_n, usedBits, decoderType, cipherConfig, dryRun } = params;
   if (dryRun) {
-    return {
-      ab, usedBits, config,
-    };
+    return params;
   }
-  const decoded = await DecodeBuffer(ab, read_n, UsedBits.fromObject(usedBits), config);
-  return DecryptBuffer(Buffer.from(decoded), config.cipherConfig);
+  const decoded = await DecodeBuffer(ab, read_n, UsedBits.fromObject(usedBits), decoderType);
+  return DecryptBuffer(Buffer.from(decoded), cipherConfig);
 }

@@ -89,6 +89,17 @@ class IndexFile extends BaseFile {
     console.log(hash.digest("hex"));
     return fileBuf;
   }
+
+  async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
+    console.log("IndexFile", indexFile);
+    const results = await sinkDelegate.DownloadMultipleFiles(indexFile.chunks, downloadConfig);
+    const fileBuf = Buffer.concat(results);
+    const hash = crypto.createHash("md5");
+    hash.update(fileBuf);
+    console.log(hash.digest("hex"));
+    return fileBuf;
+  }
 }
 
 class BootloaderFile extends BaseFile {
@@ -151,7 +162,7 @@ class BootloaderFile extends BaseFile {
       null, // abort signal
     );
     const indexFile = new IndexFile();
-    return await indexFile.DownloadAllChunks(blFile.indexFileHead!, dataDownloadConfig);
+    return await indexFile.DownloadAllChunksWithWorkerPool(blFile.indexFileHead!, dataDownloadConfig);
   }
 }
 
@@ -176,7 +187,7 @@ export class UploadFile {
     public chunkSize: number,
     public concurrency: number,
     public validate: boolean,
-    public fs = realfs /* support memfs inject */,
+    public fs: any = realfs /* support memfs inject */,
     public sinkType: SinkType = SinkType.unknown,
   ) {
     assert(chunkSize > 0);
@@ -262,6 +273,7 @@ export class UploadFile {
 export class DownloadFile {
   public blDesc: PbBootloaderDescription;
   public blDownloadConfig: SinkDownloadConfig;
+  private blFile: BootloaderFile;
 
   constructor(descHex: string, concurrency: number) {
     const buf = Buffer.from(descHex, "hex");
@@ -277,8 +289,8 @@ export class DownloadFile {
     );
   }
 
-  async Download(outputFilePath: string) {
-    const blFile = new BootloaderFile();
+  async Download() {
+    this.blFile = new BootloaderFile();
     const blFileChunk: PbFileChunk = {
       $type: PbFileChunk.$type,
       size: this.blDesc.size,
@@ -286,9 +298,14 @@ export class DownloadFile {
       usedBits: this.blDesc.usedBits,
     }
     console.log(blFileChunk)
-    const buf = await blFile.Download(blFileChunk, this.blDownloadConfig);
+    const buf = await this.blFile.Download(blFileChunk, this.blDownloadConfig);
+    return buf;
+  }
+
+  async SaveToFile(outputFilePath: string) {
+    const buf = await this.Download();
     if (!outputFilePath) {
-      outputFilePath = path.join("/tmp", blFile.blFile.fileName);
+      outputFilePath = path.join("/tmp", this.blFile.blFile.fileName);
     }
     fs.writeFileSync(outputFilePath, buf);
   }

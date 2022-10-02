@@ -47,6 +47,18 @@ export class SinkUploadConfig extends ConfigBase {
       null,
     );
   }
+
+  cloneWithUsedBits(usedBits: UsedBits) {
+    return new SinkUploadConfig(
+      usedBits,
+      this.cipherConfig,
+      this.concurrency,
+      this.validate,
+      this.maskPhotoFilePath,
+      this.encoderType,
+      this.sinkType,
+    )
+  }
 }
 
 export class SinkDownloadConfig extends ConfigBase {
