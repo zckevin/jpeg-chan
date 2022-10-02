@@ -23,12 +23,13 @@ const webpackConfig = {
     fallback: {
       fs: false,
       path: false,
-      stream: false,
       child_process: false,
       assert: false,
       os: false,
       process: false,
       util: false,
+      crypto: require.resolve("crypto-browserify"),
+      stream: require.resolve("stream-browserify"),
     },
   }
 };

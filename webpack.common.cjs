@@ -35,8 +35,8 @@ const configs = [fullConfig, browserDecoderConfig, wasmDecoderConfig, workerConf
     modules: ['node_modules'],
     extensions: ['.js', '.jsx', '.tsx', '.ts', '.json', ".wasm"],
     fallback: {
-      "crypto": require.resolve("crypto-browserify"),
-      "stream": require.resolve("stream-browserify"),
+      stream: require.resolve("stream-browserify"),
+      crypto: require.resolve("crypto-browserify"),
     }
   },
   output: {
