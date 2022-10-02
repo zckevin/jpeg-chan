@@ -1,4 +1,4 @@
-import { DecodeBuffer } from '../encoder-decoder';
+import { DecodeBuffer } from '../jpeg-decoder';
 import { DecryptBuffer } from "../encryption"
 import { UsedBits } from '../bits-manipulation';
 import { DecodeDecryptParams } from "./params"

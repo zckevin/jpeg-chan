@@ -4,7 +4,7 @@ import { DecoderType } from "../../src/jpeg-decoder";
 import { WorkerPool } from "../../src/workers";
 import { randomBytesArray } from "../../src/utils";
 import { EncryptBuffer, NewCipherConfigFromPassword } from "../../src/encryption"
-import { EncodeBuffer } from '../../src/encoder-decoder';
+import { EncodeBuffer } from '../../src/jpeg-encoder';
 import { EncoderType } from "../../src/jpeg-encoder";
 
 const usedBits = new UsedBits(1, 4);

@@ -2,6 +2,7 @@ import { deserialize, UsedBits } from "../bits-manipulation";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { isBrowser } from "browser-or-node";
 import { assert } from "../assert";
+import { AES_GCM_AUTH_TAG_LENGTH } from "../encryption"
 
 export enum DecoderType {
   browserDecoder = 1,
@@ -12,6 +13,8 @@ export enum DecoderType {
 export interface Decoder {
   getJpegChromaComponent: (ab: ArrayBuffer) => Promise<Uint8ClampedArray>;
 }
+
+const cachedDecoders: Map<string, JpegDecoder> = new Map();
 
 // import lazily/on-demand using webpack
 async function importDecoderByEnv(decoderType: DecoderType): Promise<Decoder> {
@@ -57,4 +60,21 @@ export class JpegDecoder extends JpegChannel {
     const chromaComponent = await this.decoder.getJpegChromaComponent(ab);
     return deserialize(chromaComponent, this.usedBits, n).buffer;
   }
+}
+
+function getDecoder(usedBits: UsedBits, decoderType: DecoderType) {
+  let dec: JpegDecoder;
+  const key = `${usedBits}-${decoderType.toString()}`;
+  if (cachedDecoders.has(key)) {
+    dec = cachedDecoders.get(key)!;
+  } else {
+    dec = new JpegDecoder(usedBits, decoderType);
+    cachedDecoders.set(key, dec);
+  }
+  return dec;
+}
+
+export async function DecodeBuffer(ab: ArrayBuffer, read_n: number, usedBits: UsedBits, decoderType: DecoderType) {
+  const dec = getDecoder(usedBits, decoderType);
+  return await dec.Read(ab, read_n + AES_GCM_AUTH_TAG_LENGTH);
 }

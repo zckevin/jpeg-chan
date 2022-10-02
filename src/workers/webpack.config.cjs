@@ -1,5 +1,5 @@
 const path = require("path");
-const CopyPlugin = require("copy-webpack-plugin");
+const { copyWasmFilePugin } = require("../../webpack.utils.cjs");
 
 const config = {
   target: "node",
@@ -10,14 +10,7 @@ const config = {
     libraryTarget: 'commonjs2',
   },
   plugins: [
-    new CopyPlugin({
-      patterns: [
-        {
-          from: path.resolve(__dirname, "../../node_modules/**/*.wasm"),
-          to: path.resolve(__dirname, "dist", "[name][ext]"),
-        },
-      ],
-    }),
+    copyWasmFilePugin("nanojpeg-wasm", __dirname),
   ],
 };
 

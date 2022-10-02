@@ -1,6 +1,7 @@
 import { assert } from "../assert";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { serialize, UsedBits, keepMostSignificantNBits } from "../bits-manipulation";
+import { SinkUploadConfig } from "../config";
 import jpegjs from "../jpeg-js/index.js";
 
 export enum EncoderType {
@@ -19,6 +20,8 @@ export interface EncoderImageData {
 }
 
 type MaskFn = (x: number) => number;
+
+const cachedEncoders: Map<string, JpegEncoder> = new Map();
 
 // import lazily/on-demand using webpack
 async function importEncoderByEnv(typ: EncoderType) {
@@ -156,4 +159,28 @@ export class JpegEncoder extends JpegChannel {
     const imageQuality = 100; // highest quality
     return await encoder.encodeImageData(targetImageData, imageQuality);
   }
+}
+
+function getEncoder(usedBits: UsedBits, encoderType: EncoderType) {
+  let enc: JpegEncoder;
+  const key = `${usedBits}-${encoderType.toString()}`;
+  if (cachedEncoders.has(key)) {
+    enc = cachedEncoders.get(key)!;
+  } else {
+    enc = new JpegEncoder(usedBits, encoderType);
+    cachedEncoders.set(key, enc);
+  }
+  return enc;
+}
+
+export async function EncodeBuffer(ab: ArrayBuffer, usedBits: UsedBits, config: SinkUploadConfig) {
+  const enc = getEncoder(
+    config.usedBits,
+    config.encoderType || EncoderType.jpegjsEncoder,
+  );
+  console.log("config", config)
+  if (config.maskPhotoFilePath) {
+    enc.setMaskPhotoFilePath(config.maskPhotoFilePath);
+  }
+  return await enc.Write(ab);
 }

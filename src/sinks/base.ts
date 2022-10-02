@@ -4,8 +4,8 @@ import { SinkDownloadConfig, SinkUploadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
 import { isNode } from "browser-or-node";
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
-import { EncodeBuffer, DecodeBuffer } from '../encoder-decoder';
-import { DecoderType } from '../jpeg-decoder';
+import { EncodeBuffer } from '../jpeg-encoder';
+import { DecoderType, DecodeBuffer } from '../jpeg-decoder';
 
 export enum SinkType {
   unknown = 0,
