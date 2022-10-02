@@ -1,12 +1,12 @@
 import { WeiboSink } from "./weibo";
 import { BilibiliSink } from "./bilibili";
-import _ from "lodash";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { PbFileChunk } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
+import { WorkerPool } from "../workers";
+import { find, sample } from "lodash";
 import { Observable, map, toArray, firstValueFrom } from "rxjs";
 import { AbortController } from "fetch-h2";
-import { WorkerPool } from "../workers";
 
 interface WorkerTask {
   ab: ArrayBuffer;
@@ -25,10 +25,10 @@ class SinkDelegate {
     let sink: BasicSink;
     switch (typeof matcher) {
       case "string":
-        sink = _.find(this.sinks, (s: BasicSink) => s.match(matcher));
+        sink = find(this.sinks, (s: BasicSink) => s.match(matcher));
         break;
       case "number":
-        sink = _.find(this.sinks, (s: BasicSink) => s.type === matcher);
+        sink = find(this.sinks, (s: BasicSink) => s.type === matcher);
         break;
       default:
         throw new Error("Invalid matcher");
@@ -42,7 +42,7 @@ class SinkDelegate {
   async Upload(original: Buffer, config: SinkUploadConfig) {
     const sink = (config.sinkType !== SinkType.unknown) ?
       this.getSink(config.sinkType) :
-      _.sample(this.sinks);
+      sample(this.sinks);
     return {
       url: await sink.UploadBuffer(original, config),
       usedBits: config.usedBits || sink.DEFAULT_USED_BITS,
@@ -53,23 +53,14 @@ class SinkDelegate {
     return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
   }
 
-  async DownloadMultipleFiles(chunks: PbFileChunk[], config: SinkDownloadConfig) {
-    const abortCtr = new AbortController();
-    const usedConfig = config.cloneWithSignal(abortCtr.signal);
-    const pool = new WorkerPool();
-
-    const onError = async (err: any) => {
-      console.log("Error in worker pool", err);
-      abortCtr.abort();
-      await pool.destroy();
-    }
-    const source$ = new Observable<WorkerTask>((observer) => {
+  private downloadMultipleChunks(chunks: PbFileChunk[], config: SinkDownloadConfig, onError: (err: any) => void) {
+    return new Observable<WorkerTask>((observer) => {
       (async () => {
         const promises = chunks.map(async (chunk, index) => {
           const sink = this.getSink(chunk.url)
           observer.next({
             index,
-            ab: await sink.DownloadRawData(chunk.url, usedConfig),
+            ab: await sink.DownloadRawData(chunk.url, config),
           });
         });
         Promise.all(promises)
@@ -81,7 +72,19 @@ class SinkDelegate {
             observer.error(err)
           });
       })();
-    }).pipe(
+    });
+  }
+
+  async DownloadMultipleFiles(chunks: PbFileChunk[], config: SinkDownloadConfig) {
+    const pool = new WorkerPool();
+    const abortCtr = new AbortController();
+    const usedConfig = config.cloneWithSignal(abortCtr.signal);
+    const onError = async (err: any) => {
+      console.log("Error in worker pool", err);
+      abortCtr.abort();
+      await pool.destroy();
+    }
+    const source$ = this.downloadMultipleChunks(chunks, usedConfig, onError).pipe(
       map(async (task: WorkerTask) => {
         return {
           ab: await pool.DecodeDecrypt(task.ab, chunks[task.index].size, usedConfig.usedBits, usedConfig),

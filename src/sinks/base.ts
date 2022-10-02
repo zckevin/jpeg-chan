@@ -8,6 +8,7 @@ import { EncodeBuffer, DecodeBuffer } from '../encoder-decoder';
 
 export enum SinkType {
   unknown = 0,
+  tmpfile,
   weibo,
   bilibili,
 }
@@ -63,7 +64,7 @@ export class BasicSink {
     return await this.DecodeDecrypt(ab, size, config);
   }
 
-  async validate(original: ArrayBuffer, url: string, config: SinkDownloadConfig) {
+  async validate(original: Buffer, url: string, config: SinkDownloadConfig) {
     const decoded = await this.DownloadDecodeDecrypt(url, original.byteLength, config);
     for (let i = 0; i < original.byteLength; i++) {
       if (original[i] !== decoded[i]) {

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
 import { Tasker } from "./tasker";
-import { sinkDelegate } from "./sinks/delegate";
+import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import {
   PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk,

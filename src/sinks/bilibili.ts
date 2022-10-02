@@ -83,14 +83,11 @@ export class BilibiliSink extends BasicSink {
     return url;
   }
 
-  getRandomImageUrl(url: string) {
-    return url.replace(
+  async DoNodeDownload(url: string, config: SinkDownloadConfig) {
+    const randomCDNUrl = url.replace(
       "i0", `i${sample(range(0, 4))}`
     );
-  }
-
-  async DoNodeDownload(url: string, config: SinkDownloadConfig) {
-    return NodeH2Fetch(this.getRandomImageUrl(url), config.signal);
+    return NodeH2Fetch(randomCDNUrl, config.signal);
   }
 
   ExpandIDToUrl(id: string) {
