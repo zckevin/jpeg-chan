@@ -1,4 +1,4 @@
-import { TmpFileSink } from "../../src/sinks/tmpfile";
+import { MemFileSink } from "../../src/sinks/memfile";
 import { randomBytesArray } from "../../src/utils";
 import { UsedBits } from "../../src/bits-manipulation";
 import { SinkUploadConfig } from "../../src/config";
@@ -10,7 +10,7 @@ const cipherConfig = NewCipherConfigFromPassword(new Uint8Array(randomBytesArray
 const uploadConfig = new SinkUploadConfig(usedBits, cipherConfig, 4, false, "", EncoderType.wasmEncoder, null);
 
 async function uploadDownloadLoop() {
-  const sink = new TmpFileSink();
+  const sink = new MemFileSink();
   const buf = Buffer.from(randomBytesArray(1024).buffer);
   const url = await sink.UploadBuffer(buf, uploadConfig);
   const decoded = await sink.DownloadDecodeDecrypt(url, buf.length, uploadConfig.toDownloadConfig());

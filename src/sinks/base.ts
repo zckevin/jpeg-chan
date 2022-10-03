@@ -9,7 +9,7 @@ import { DecoderType, DecodeBuffer } from '../jpeg-decoder';
 
 export enum SinkType {
   unknown = 0,
-  tmpfile,
+  memfile,
   weibo,
   bilibili,
 }

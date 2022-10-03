@@ -15,6 +15,7 @@ import fs from "fs";
 import os from "os";
 import crypto from 'crypto';
 import debug from 'debug';
+import _ from "lodash";
 
 const debugLogger = debug('jpeg:file');
 
@@ -53,8 +54,20 @@ class RawDataFile extends BaseFile {
 
 class IndexFile extends BaseFile {
   private log = debugLogger.extend('index');
+
+  public indexFile: PbIndexFile;
+  public indexFilePointer: PbFileChunk;
+
   constructor() {
     super();
+  }
+
+  static async CreateForDownload(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    const file = new IndexFile();
+    file.indexFilePointer = indexFilePointer;
+    file.indexFile = await file.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
+    file.log("create indexFilePointer/indexFile:", indexFilePointer, file.indexFile);
+    return file;
   }
 
   async GenIndexFile(chunks: PbFileChunk[], uploadConfig: SinkUploadConfig) {
@@ -70,29 +83,6 @@ class IndexFile extends BaseFile {
     return chunk;
   }
 
-  async DownloadAllChunks(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-    this.log("DownloadAllChunks from: ", indexFile);
-    const n_chunks = indexFile.chunks.length;
-    const tasks = indexFile.chunks.map((chunk, index) => async () => {
-      const result = await sinkDelegate.DownloadSingleFile(
-        chunk,
-        downloadConfig.cloneWithUsedBits(UsedBits.fromString(chunk.usedBits)),
-      );
-      this.log(`DownloadAllChunks finish download task ${index}/${n_chunks}: ${chunk.url}(${chunk.size})`);
-      return result;
-    });
-    const downloadTasker = new Tasker(tasks, downloadConfig.concurrency);
-    await downloadTasker.done;
-    this.log("DownloadAllChunks results: ", downloadTasker.results);
-
-    const fileBuf = Buffer.concat(downloadTasker.results);
-    const hash = crypto.createHash("md5");
-    hash.update(fileBuf);
-    this.log("DownloadAllChunks results md5sum: ", hash.digest("hex"));
-    return fileBuf;
-  }
-
   async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
     const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
     this.log("DownloadAllChunksWithWorkerPool from: ", indexFile);
@@ -103,14 +93,37 @@ class IndexFile extends BaseFile {
     this.log("DownloadAllChunksWithWorkerPool results md5sum: ", hash.digest("hex"));
     return fileBuf;
   }
+
+  async DownloadChunksWithWorkerPool(indexFilePointer: PbFileChunk, chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
+    const targetChunks = _.pullAt(this.indexFile.chunks, chunkIndexes);
+    return await sinkDelegate.DownloadMultipleFiles(targetChunks, downloadConfig);
+  }
 }
 
 class BootloaderFile extends BaseFile {
   private log = debugLogger.extend('bootloader');
+
   public blFile: PbBootloaderFile;
+  public dataDownloadConfig: SinkDownloadConfig;
 
   constructor() {
     super();
+  }
+
+  static async CreateForDownload(blFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+    const file = new BootloaderFile();
+    const blFile = await file.download<PbBootloaderFile>(PbBootloaderFile, blFilePointer, downloadConfig);
+    const dataDownloadConfig = new SinkDownloadConfig(
+      UsedBits.fromString(blFile.indexFileHead!.usedBits), // usedBits
+      new CipherConfig("aes-128-gcm", Buffer.from(blFile.aesKey), Buffer.from(blFile.aesIv)),
+      downloadConfig.concurrency,
+      DecoderType.wasmDecoder, // decoder
+      null, // abort signal
+    );
+    file.blFile = blFile;
+    file.dataDownloadConfig = dataDownloadConfig;
+    file.log("create ptr/file/dataDownloadConfig", blFilePointer, blFile, dataDownloadConfig);
+    return file;
   }
 
   // addPadding() {
@@ -155,20 +168,17 @@ class BootloaderFile extends BaseFile {
     return Buffer.from(PbBootloaderDescription.encode(blDesc).finish()).toString('hex');
   }
 
-  async Download(blFileChunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    this.log("Bootloader download from: ", blFileChunk);
-    const blFile = await this.download<PbBootloaderFile>(PbBootloaderFile, blFileChunk, downloadConfig);
-    this.blFile = blFile;
-    this.log("Bootloader: ", blFile);
-    const dataDownloadConfig = new SinkDownloadConfig(
-      UsedBits.fromString(blFile.indexFileHead!.usedBits), // usedBits
-      new CipherConfig("aes-128-gcm", Buffer.from(blFile.aesKey), Buffer.from(blFile.aesIv)),
-      downloadConfig.concurrency,
-      DecoderType.wasmDecoder, // decoder
-      null, // abort signal
+  async Read(n: number, pos: number = 0) {
+    const indexFile = await IndexFile.CreateForDownload(this.blFile.indexFileHead!, this.dataDownloadConfig);
+    const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize);
+    const targetChunkIndexes = helper.caclulateReadChunkIndexes(pos, n + pos);
+    this.log("Read n/pos/targetChunkIndexes", n, pos, targetChunkIndexes)
+    const chunks = await indexFile.DownloadChunksWithWorkerPool(
+      this.blFile.indexFileHead!,
+      targetChunkIndexes,
+      this.dataDownloadConfig,
     );
-    const indexFile = new IndexFile();
-    return await indexFile.DownloadAllChunksWithWorkerPool(blFile.indexFileHead!, dataDownloadConfig);
+    return helper.concatAndTrimBuffer(chunks, targetChunkIndexes, pos, n + pos);
   }
 }
 
@@ -283,7 +293,7 @@ export class DownloadFile {
 
   public blDesc: PbBootloaderDescription;
   public blDownloadConfig: SinkDownloadConfig;
-  private blFile: BootloaderFile;
+  public bl: BootloaderFile;
 
   constructor(descHex: string, concurrency: number) {
     const buf = Buffer.from(descHex, "hex");
@@ -299,23 +309,69 @@ export class DownloadFile {
     );
   }
 
-  async Download() {
-    this.blFile = new BootloaderFile();
+  static async Create(descHex: string, concurrency: number) {
+    const f = new DownloadFile(descHex, concurrency);
+    const { blDesc, blDownloadConfig } = f;
     const blFileChunk: PbFileChunk = {
       $type: PbFileChunk.$type,
-      size: this.blDesc.size,
-      url: sinkDelegate.ExpandIDToUrl(this.blDesc.sinkType, this.blDesc.id),
-      usedBits: this.blDesc.usedBits,
+      size: blDesc.size,
+      url: sinkDelegate.ExpandIDToUrl(blDesc.sinkType, blDesc.id),
+      usedBits: blDesc.usedBits,
     }
-    const buf = await this.blFile.Download(blFileChunk, this.blDownloadConfig);
-    return buf;
+    f.bl = await BootloaderFile.CreateForDownload(blFileChunk, blDownloadConfig);
+    return f;
+  }
+
+  async Read(n: number, pos: number = 0) {
+    return await this.bl.Read(n, pos);
+  }
+  
+  async Readall() {
+    return this.Read(this.bl.blFile.fileSize);
   }
 
   async SaveToFile(outputFilePath: string) {
-    const buf = await this.Download();
+    const buf = await this.Readall();
     if (!outputFilePath) {
-      outputFilePath = path.join(os.tmpdir(), this.blFile.blFile.fileName);
+      outputFilePath = path.join(os.tmpdir(), this.bl.blFile.fileName);
     }
     fs.writeFileSync(outputFilePath, buf);
+  }
+}
+
+export class ChunksHelper {
+  constructor(
+    public fileSize: number,
+    public chunkSize: number
+  ) {
+    assert(chunkSize > 0 && chunkSize <= fileSize, "invalid params");
+  }
+
+  // range is [start, end) 
+  caclulateReadChunkIndexes(start: number = 0, end: number = -1) {
+    if (end === -1) {
+      end = this.fileSize;
+    }
+    assert(
+      start >= 0 &&
+      start <= end &&
+      end <= this.fileSize,
+      "invalid params",
+    );
+    const startIndex = Math.floor(start / this.chunkSize);
+    // end_chunk is exclusive
+    const endIndex = Math.ceil(end / this.chunkSize);
+    return _.range(startIndex, endIndex);
+  }
+
+  concatAndTrimBuffer(bufs: Buffer[], chunkIndexes: number[], start: number, end: number): Buffer {
+    if (bufs.length === 0) {
+      return Buffer.alloc(0);
+    }
+    assert(bufs.length === chunkIndexes.length, "invalid params");
+    const buf = Buffer.concat(bufs);
+    const startOffset = start - chunkIndexes[0] * this.chunkSize;
+    const endOffset = startOffset + (end - start);
+    return buf.slice(startOffset, endOffset);
   }
 }

@@ -1,6 +1,6 @@
 import { WeiboSink } from "./weibo";
 import { BilibiliSink } from "./bilibili";
-import { TmpFileSink } from "./tmpfile";
+import { MemFileSink } from "./memfile";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { PbFileChunk } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
@@ -9,6 +9,7 @@ import { find, sample } from "lodash";
 import { Observable, mergeMap, toArray, firstValueFrom, from, scheduled } from "rxjs";
 import { AbortController } from "fetch-h2";
 import debug from 'debug';
+import assert from "assert";
 
 const log = debug('jpeg:sinks');
 
@@ -21,7 +22,7 @@ class SinkDelegate {
   private sinks = [
     new WeiboSink(),
     new BilibiliSink(),
-    new TmpFileSink(),
+    new MemFileSink(),
   ];
 
   constructor() { }
@@ -106,6 +107,7 @@ class SinkDelegate {
       toArray(),
     );
     const result = await firstValueFrom(source$);
+    assert(result.length === chunks.length, "Download result length mismatch");
     await pool.destroy();
     return result.sort((a, b) => a.index - b.index).map((r) => r.ab);
   }
