@@ -1,5 +1,6 @@
-import { EncoderType, JpegEncoder } from "../src/jpeg-encoder/";
-import { DecoderType, JpegDecoder } from "../src/jpeg-decoder/";
+import { EncoderType, DecoderType } from '../src/common-types';
+import { JpegEncoder } from "../src/jpeg-encoder/";
+import { JpegDecoder } from "../src/jpeg-decoder/";
 import { UsedBits } from '../src/bits-manipulation';
 import { randomBytesArray } from "../src/utils";
 import _ from "lodash";

@@ -3,7 +3,7 @@ import { randomBytesArray } from "../../src/utils";
 import { UsedBits } from "../../src/bits-manipulation";
 import { SinkUploadConfig } from "../../src/config";
 import { NewCipherConfigFromPassword } from "../../src/encryption"
-import { EncoderType } from "../../src/jpeg-encoder";
+import { EncoderType } from "../../src/common-types";
 
 const usedBits = new UsedBits(1, 4);
 const cipherConfig = NewCipherConfigFromPassword(new Uint8Array(randomBytesArray(32)));
@@ -12,7 +12,7 @@ const uploadConfig = new SinkUploadConfig(usedBits, cipherConfig, 4, false, "", 
 async function uploadDownloadLoop() {
   const sink = new MemFileSink();
   const buf = Buffer.from(randomBytesArray(1024).buffer);
-  const url = await sink.UploadBuffer(buf, uploadConfig);
+  const url = await sink.EncryptEncodeUpload(buf, uploadConfig);
   const decoded = await sink.DownloadDecodeDecrypt(url, buf.length, uploadConfig.toDownloadConfig());
   expect(decoded).toEqual(buf);
 }

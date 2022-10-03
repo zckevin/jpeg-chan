@@ -35,6 +35,9 @@ jobs:
     - name: build
       run: npm run build
 
+    - name: set jest debug env
+      run: echo "DEBUG=jpeg:*" >> $GITHUB_ENV
+
     - name: run jest tests
       run: npm run test:jest
 

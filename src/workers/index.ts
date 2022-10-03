@@ -1,7 +1,7 @@
 import { SinkDownloadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
 import { DecodeDecryptParams } from "./params"
-import { DecoderType } from "../jpeg-decoder";
+import { DecoderType } from "../common-types";
 import path from 'path';
 import Tinypool from '@zckevin/tinypool-cjs'
 

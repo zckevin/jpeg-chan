@@ -1,11 +1,10 @@
 import { UsedBits } from "../../src/bits-manipulation";
 import { SinkDownloadConfig, SinkUploadConfig } from "../../src/config";
-import { DecoderType } from "../../src/jpeg-decoder";
 import { WorkerPool } from "../../src/workers";
 import { randomBytesArray } from "../../src/utils";
 import { EncryptBuffer, NewCipherConfigFromPassword } from "../../src/encryption"
 import { EncodeBuffer } from '../../src/jpeg-encoder';
-import { EncoderType } from "../../src/jpeg-encoder";
+import { EncoderType, DecoderType } from "../../src/common-types";
 
 const usedBits = new UsedBits(1, 4);
 const cipherConfig = NewCipherConfigFromPassword(new Uint8Array(randomBytesArray(32)));

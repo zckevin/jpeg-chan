@@ -5,8 +5,7 @@ import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFilePointer } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
-import { DecoderType } from './jpeg-decoder/index';
-import { EncoderType } from './jpeg-encoder/index';
+import { EncoderType, DecoderType } from './common-types';
 import { SinkType } from './sinks/base';
 import { Task } from './tasker';
 import { NewCipherConfigFromPassword } from "./encryption"
@@ -71,6 +70,7 @@ class IndexFile extends BaseFile {
     const indexFile: PbIndexFile = {
       $type: PbIndexFile.$type,
       chunks: chunks,
+      // TODO: support split index file into multiple files
       ended: true,
       next: undefined,
     }
@@ -79,17 +79,6 @@ class IndexFile extends BaseFile {
     this.log("Gen result: ", indexFilePtr);
     return indexFilePtr;
   }
-
-  // async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFilePointer, downloadConfig: SinkDownloadConfig) {
-  //   const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-  //   this.log("DownloadAllChunksWithWorkerPool from: ", indexFile);
-  //   const results = await sinkDelegate.DownloadMultipleFiles(indexFile.chunks, downloadConfig);
-  //   const fileBuf = Buffer.concat(results);
-  //   const hash = crypto.createHash("md5");
-  //   hash.update(fileBuf);
-  //   this.log("DownloadAllChunksWithWorkerPool results md5sum: ", hash.digest("hex"));
-  //   return fileBuf;
-  // }
 
   async DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
     const targetChunks = _.pullAt(this.indexFile.chunks, chunkIndexes);
@@ -321,13 +310,16 @@ export class DownloadFile {
   async Read(n: number, pos: number = 0) {
     return await this.bl.Read(n, pos);
   }
-  
+
   async Readall() {
     return this.Read(this.bl.blFile.fileSize);
   }
 
   async SaveToFile(outputFilePath: string) {
     const buf = await this.Readall();
+    const hash = crypto.createHash("md5");
+    hash.update(buf);
+    console.log("SaveToFile", outputFilePath, hash.digest("hex"));
     if (!outputFilePath) {
       outputFilePath = path.join(os.tmpdir(), this.bl.blFile.fileName);
     }

@@ -1,5 +1,4 @@
-import { EncoderType } from "../../src/jpeg-encoder/index";
-import { DecoderType } from "../../src/jpeg-decoder/index";
+import { EncoderType, DecoderType } from '../../src/common-types';
 import * as jpegjsDecoder from "../../src/jpeg-decoder/jpegjs-decoder";
 import * as browserDecoder from "../../src/jpeg-decoder/browser-decoder";
 import { UsedBits } from "../../src/bits-manipulation";

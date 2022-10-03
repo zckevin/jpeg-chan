@@ -1,14 +1,9 @@
+import { assert } from "../assert";
+import { DecoderType } from "../common-types";
 import { deserialize, UsedBits } from "../bits-manipulation";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { isBrowser } from "browser-or-node";
-import { assert } from "../assert";
 import { AES_GCM_AUTH_TAG_LENGTH } from "../encryption"
-
-export enum DecoderType {
-  browserDecoder = 1,
-  jpegjsDecoder,
-  wasmDecoder,
-}
 
 export interface Decoder {
   getJpegChromaComponent: (ab: ArrayBuffer) => Promise<Uint8ClampedArray>;

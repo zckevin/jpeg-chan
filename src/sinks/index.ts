@@ -52,7 +52,7 @@ class SinkDelegate {
     const usedConfig = config.usedBits ? config : config.cloneWithUsedBits(sink.DEFAULT_USED_BITS);
     log("upload with config", usedConfig);
     return {
-      url: await sink.UploadBuffer(original, usedConfig),
+      url: await sink.EncryptEncodeUpload(original, usedConfig),
       usedBits: usedConfig.usedBits,
     }
   }

@@ -1,5 +1,6 @@
+import { DecoderType } from '../../src/common-types';
 import { JpegEncoder } from "../../src/jpeg-encoder/index";
-import { DecoderType, JpegDecoder } from "../../src/jpeg-decoder/index";
+import { JpegDecoder } from "../../src/jpeg-decoder/index";
 import { randomBytesArray } from "../../src/utils";
 import { UsedBits } from "../../src/bits-manipulation"
 

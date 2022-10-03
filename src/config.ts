@@ -1,7 +1,6 @@
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
-import { EncoderType } from "./jpeg-encoder/index";
-import { DecoderType } from "./jpeg-decoder/index";
+import { EncoderType, DecoderType } from './common-types';
 import { SinkType } from "./sinks/base";
 import { AbortSignal } from "fetch-h2";
 

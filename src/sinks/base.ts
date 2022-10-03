@@ -5,7 +5,8 @@ import { UsedBits } from '../bits-manipulation';
 import { isNode } from "browser-or-node";
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
 import { EncodeBuffer } from '../jpeg-encoder';
-import { DecoderType, DecodeBuffer } from '../jpeg-decoder';
+import { DecodeBuffer } from '../jpeg-decoder';
+import { DecoderType } from '../common-types';
 
 export enum SinkType {
   unknown = 0,
@@ -24,7 +25,7 @@ export class BasicSink {
     public type: SinkType,
   ) { }
 
-  async UploadBuffer(original: Buffer, config: SinkUploadConfig) {
+  async EncryptEncodeUpload(original: Buffer, config: SinkUploadConfig) {
     const encypted = EncryptBuffer(original, config.cipherConfig, this.MIN_UPLOAD_BUFFER_SIZE);
     const encoded = await EncodeBuffer(
       encypted,

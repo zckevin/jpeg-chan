@@ -1,5 +1,5 @@
 import { UsedBits } from '../bits-manipulation';
-import { DecoderType } from '../jpeg-decoder';
+import { DecoderType } from '../common-types';
 import { CipherConfig } from '../config';
 
 export interface DecodeDecryptParams {

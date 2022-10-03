@@ -1,4 +1,5 @@
 import { assert } from "../assert";
+import { EncoderType } from "../common-types";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { serialize, UsedBits, keepMostSignificantNBits } from "../bits-manipulation";
 import { SinkUploadConfig } from "../config";
@@ -6,11 +7,6 @@ import jpegjs from "../jpeg-js/index.js";
 import debug from 'debug';
 
 const log = debug('jpeg:encoder');
-
-export enum EncoderType {
-  jpegjsEncoder = 1,
-  wasmEncoder,
-}
 
 export interface Encoder {
   encodeImageData: (targetImageData: EncoderImageData, imageQuality: number) => Promise<Buffer>;

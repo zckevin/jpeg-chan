@@ -1,5 +1,4 @@
-import { EncoderType } from "../../src/jpeg-encoder/";
-import { DecoderType } from "../../src/jpeg-decoder/";
+import { EncoderType, DecoderType } from '../../src/common-types';
 import { UsedBits } from '../../src/bits-manipulation';
 import { EncDecLoop } from "../general"
 import _ from "lodash";
