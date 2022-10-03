@@ -3,7 +3,7 @@ import { UsedBits } from "./bits-manipulation";
 import { Tasker } from "./tasker";
 import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFilePointer } from "../protobuf";
+import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFilePointer, GenDescHex, ParseDescHex } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { EncoderType, DecoderType } from './common-types';
 import { SinkType } from './sinks/base';
@@ -151,7 +151,7 @@ class BootloaderFile extends BaseFile {
       password: blPassword,
     }
     this.log("Gen result: ", blDesc);
-    return Buffer.from(PbBootloaderDescription.encode(blDesc).finish()).toString('hex');
+    return GenDescHex(blDesc);
   }
 
   async Read(n: number, pos: number = 0) {
@@ -281,8 +281,7 @@ export class DownloadFile {
   public bl: BootloaderFile;
 
   constructor(descHex: string, concurrency: number) {
-    const buf = Buffer.from(descHex, "hex");
-    this.blDesc = PbBootloaderDescription.decode(buf);
+    this.blDesc = ParseDescHex(descHex);
     this.log("Desc: ", this.blDesc);
 
     this.blDownloadConfig = new SinkDownloadConfig(

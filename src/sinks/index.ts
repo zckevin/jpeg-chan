@@ -6,10 +6,10 @@ import { PbFilePointer } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
 import { WorkerPool } from "../workers";
 import { find, sample } from "lodash";
+import { assert } from "../assert";
 import { Observable, mergeMap, toArray, firstValueFrom, from, scheduled } from "rxjs";
 import { AbortController } from "fetch-h2";
 import debug from 'debug';
-import assert from "assert";
 
 const log = debug('jpeg:sinks');
 

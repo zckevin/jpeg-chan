@@ -51,11 +51,6 @@ test("ChunksHelper concatAndTrimBuffer", async () => {
   }
 }, 60_000);
 
-// test("zcsb", async () => {
-//   const downloadFile = await DownloadFile.Create("invalid desc", 1);
-//   await downloadFile.Read(1, 1);
-// });
-
 test("Downloadfile Read with range", async () => {
   const concurrency = 1;
   const fn = async (fileSize: number, chunkSize: number) => {

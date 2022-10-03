@@ -1,5 +1,6 @@
 /* eslint-disable */
 import * as _m0 from "protobufjs/minimal";
+import { Any } from "../../google/protobuf/any";
 import { messageTypeRegistry } from "../../typeRegistry";
 
 export const protobufPackage = "protobuf.v1";
@@ -42,6 +43,12 @@ export interface PbBootloaderDescription {
   size: number;
   usedBits: string;
   password: Uint8Array;
+}
+
+export interface PbMsgWithChecksum {
+  $type: "protobuf.v1.PbMsgWithChecksum";
+  msg: Any | undefined;
+  checksum: Uint8Array;
 }
 
 function createBasePbFilePointer(): PbFilePointer {
@@ -403,6 +410,70 @@ export const PbBootloaderDescription = {
 };
 
 messageTypeRegistry.set(PbBootloaderDescription.$type, PbBootloaderDescription);
+
+function createBasePbMsgWithChecksum(): PbMsgWithChecksum {
+  return { $type: "protobuf.v1.PbMsgWithChecksum", msg: undefined, checksum: new Uint8Array() };
+}
+
+export const PbMsgWithChecksum = {
+  $type: "protobuf.v1.PbMsgWithChecksum" as const,
+
+  encode(message: PbMsgWithChecksum, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.msg !== undefined) {
+      Any.encode(message.msg, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.checksum.length !== 0) {
+      writer.uint32(18).bytes(message.checksum);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PbMsgWithChecksum {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePbMsgWithChecksum();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.msg = Any.decode(reader, reader.uint32());
+          break;
+        case 2:
+          message.checksum = reader.bytes();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PbMsgWithChecksum {
+    return {
+      $type: PbMsgWithChecksum.$type,
+      msg: isSet(object.msg) ? Any.fromJSON(object.msg) : undefined,
+      checksum: isSet(object.checksum) ? bytesFromBase64(object.checksum) : new Uint8Array(),
+    };
+  },
+
+  toJSON(message: PbMsgWithChecksum): unknown {
+    const obj: any = {};
+    message.msg !== undefined && (obj.msg = message.msg ? Any.toJSON(message.msg) : undefined);
+    message.checksum !== undefined &&
+      (obj.checksum = base64FromBytes(message.checksum !== undefined ? message.checksum : new Uint8Array()));
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<PbMsgWithChecksum>, I>>(object: I): PbMsgWithChecksum {
+    const message = createBasePbMsgWithChecksum();
+    message.msg = (object.msg !== undefined && object.msg !== null) ? Any.fromPartial(object.msg) : undefined;
+    message.checksum = object.checksum ?? new Uint8Array();
+    return message;
+  },
+};
+
+messageTypeRegistry.set(PbMsgWithChecksum.$type, PbMsgWithChecksum);
 
 declare var self: any | undefined;
 declare var window: any | undefined;

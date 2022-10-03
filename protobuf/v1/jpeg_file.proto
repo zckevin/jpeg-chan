@@ -1,6 +1,8 @@
 syntax = "proto2";
 package protobuf.v1;
 
+import "google/protobuf/any.proto";
+
 message PbFilePointer {
     required uint32 size = 1;
     required string url = 2;
@@ -33,4 +35,9 @@ message PbBootloaderDescription {
     required uint32 size = 3;
     required string used_bits = 4;
     required bytes password = 5;
+}
+
+message PbMsgWithChecksum {
+    required google.protobuf.Any msg = 1;
+    required bytes checksum = 2;
 }
