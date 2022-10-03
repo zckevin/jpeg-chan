@@ -4,6 +4,7 @@ const process = require("process");
 const fs = require("fs");
 const TsconfigPathsPlugin = require('tsconfig-paths-webpack-plugin');
 const { moduleConfig } = require("./webpack.common.cjs")
+const { fallbackConfig } = require("./webpack.utils.cjs")
 
 const output = {
   path: path.join(os.tmpdir(), '_karma_webpack_') + Math.floor(Math.random() * 1000000),
@@ -20,17 +21,7 @@ const webpackConfig = {
         configFile: path.resolve(__dirname, 'tsconfig.json'),
       }),
     ],
-    fallback: {
-      fs: false,
-      path: false,
-      child_process: false,
-      assert: false,
-      os: false,
-      process: false,
-      util: false,
-      crypto: require.resolve("crypto-browserify"),
-      stream: require.resolve("stream-browserify"),
-    },
+    fallback: fallbackConfig,
   }
 };
 

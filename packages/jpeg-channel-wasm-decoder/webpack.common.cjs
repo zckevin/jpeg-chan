@@ -12,13 +12,6 @@ const config = {
   },
   module: {},
   plugins: [],
-  resolve: {
-    fallback: {
-      fs: false,
-      path: false,
-      assert: false,
-    }
-  },
 };
 
 module.exports = config;

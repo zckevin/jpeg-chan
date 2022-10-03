@@ -15,6 +15,20 @@ function copyFileFromNodeModulesPugin(moduleName, dirname, filename) {
   });
 }
 
+const fallbackConfig = {
+  fs: false,
+  path: false,
+  child_process: false,
+  assert: false,
+  os: false,
+  process: false,
+  util: false,
+  tty: false,
+  crypto: require.resolve("crypto-browserify"),
+  stream: require.resolve("stream-browserify"),
+};
+
 module.exports = {
   copyFileFromNodeModulesPugin,
+  fallbackConfig,
 }

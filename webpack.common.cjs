@@ -6,6 +6,7 @@ const browserDecoderConfig = require("./packages/jpeg-channel-browser-decoder/we
 const wasmDecoderConfig = require("./packages/jpeg-channel-wasm-decoder/webpack.common.cjs");
 const fileConfig = require("./packages/jpeg-file/webpack.config.cjs");
 const workerConfig = require("./src/workers/webpack.config.cjs");
+const { fallbackConfig } = require("./webpack.utils.cjs");
 
 const moduleConfig = {
   rules: [
@@ -32,23 +33,17 @@ const moduleConfig = {
 };
 
 const configs = [
-  // fullConfig,
-  // browserDecoderConfig,
-  // wasmDecoderConfig,
+  fullConfig,
+  browserDecoderConfig,
+  wasmDecoderConfig,
   fileConfig,
-  // workerConfig
+  workerConfig
 ].map((config) => merge(config, {
   module: moduleConfig,
   resolve: {
     modules: ['node_modules'],
     extensions: ['.js', '.jsx', '.tsx', '.ts', '.json', ".wasm"],
-    fallback: {
-      os: false,
-      tty: false,
-      util: false,
-      stream: require.resolve("stream-browserify"),
-      crypto: require.resolve("crypto-browserify"),
-    }
+    fallback: fallbackConfig,
   },
   // plugins: [new BundleAnalyzerPlugin()],
   output: {
