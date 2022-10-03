@@ -69,3 +69,11 @@ export function RGB2Y(r: number, g: number, b: number) {
 export function BufferToArrayBuffer(buffer: Buffer) {
   return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 }
+
+export async function WrapFunctionWithTimePerf(fnName: string, fn: Function, logFn: Function) {
+  const start = new Date().getTime();
+  const result = await fn();
+  const end = new Date().getTime();
+  logFn(`${fnName} done, took ${end - start} ms`);
+  return result;
+}

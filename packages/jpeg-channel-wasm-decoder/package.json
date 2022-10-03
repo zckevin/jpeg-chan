@@ -3,8 +3,8 @@
   "version": "0.0.1",
   "license": "MIT",
   "type": "module",
-  "main": "dist/jpeg-decoder.min.js",
+  "main": "dist/jpeg-decoder.js",
   "files": [
-    "dist/jpeg-decoder.min.js"
+    "dist/jpeg-decoder.js"
   ]
 }

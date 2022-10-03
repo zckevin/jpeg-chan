@@ -1,4 +1,4 @@
-import {randomString } from "../../src/utils";
+import { randomString } from "../../src/utils";
 import { UploadFile, DownloadFile, ChunksHelper } from "../../src/file";
 import { fs as memfs } from 'memfs';
 import { SinkType } from "../../src/sinks/base";

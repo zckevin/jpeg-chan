@@ -2,13 +2,34 @@ import { SinkDownloadConfig } from "../config";
 import { UsedBits } from '../bits-manipulation';
 import { DecodeDecryptParams } from "./params"
 import { DecoderType } from "../common-types";
-import path from 'path';
+import fs from "node:fs"
+import path from 'node:path';
 import Tinypool from '@zckevin/tinypool-cjs'
+import debug from 'debug';
+
+const log = debug(`jpeg:worker:pool`);
+
+function resolveFile(filePath: string, fileName: string) {
+  const filePaths = [
+    path.join("./", filePath, fileName),
+    // for production builds, __dirname is the output /dist folder
+    path.resolve(eval('__dirname'), fileName),
+    path.resolve(__dirname, filePath, fileName),
+  ];
+  for (const filePath of filePaths) {
+    log("resolve decode-decrypt-worker.js from: ", filePath);
+    if (fs.existsSync(filePath)) {
+      log("found at:", filePath);
+      return filePath;
+    }
+  }
+  throw new Error(`Cannot resolve file: ${fileName}`);
+}
 
 export class WorkerPool {
   private poolIdleTimeout = 10_000;
   private pool = new Tinypool({
-    filename: path.resolve(__dirname, "./dist/worker.min.js"),
+    filename: resolveFile("./dist", "decode-decrypt-worker.js"),
     idleTimeout: this.poolIdleTimeout,
   })
 

@@ -4,6 +4,9 @@ import { deserialize, UsedBits } from "../bits-manipulation";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { isBrowser } from "browser-or-node";
 import { AES_GCM_AUTH_TAG_LENGTH } from "../encryption"
+import debug from 'debug';
+
+const log = debug('jpeg:decoder');
 
 export interface Decoder {
   getJpegChromaComponent: (ab: ArrayBuffer) => Promise<Uint8ClampedArray>;
@@ -66,10 +69,12 @@ function getDecoder(usedBits: UsedBits, decoderType: DecoderType) {
     dec = new JpegDecoder(usedBits, decoderType);
     cachedDecoders.set(key, dec);
   }
+  log("DecodeBuffer with decoder:", DecoderType[decoderType]);
   return dec;
 }
 
 export async function DecodeBuffer(ab: ArrayBuffer, read_n: number, usedBits: UsedBits, decoderType: DecoderType) {
   const dec = getDecoder(usedBits, decoderType);
-  return await dec.Read(ab, read_n + AES_GCM_AUTH_TAG_LENGTH);
+  const result = await dec.Read(ab, read_n + AES_GCM_AUTH_TAG_LENGTH);
+  return result;
 }

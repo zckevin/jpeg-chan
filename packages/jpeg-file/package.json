@@ -1,0 +1,17 @@
+{
+  "name": "@zckevin/jpeg-file",
+  "version": "0.0.1",
+  "author": "Cong Zuo",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "scripts": {
+  }
+}
+

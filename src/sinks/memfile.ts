@@ -23,6 +23,9 @@ export class MemFileSink extends BasicSink {
   }
 
   async DoNodeDownload(url: string, config: SinkDownloadConfig) {
+    if (!this.store.has(url)) {
+      throw new Error(`MemFileSink not found: ${url}`);
+    }
     return this.store.get(url);
   }
 

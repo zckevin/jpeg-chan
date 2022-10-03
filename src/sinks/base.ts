@@ -11,6 +11,7 @@ import { DecoderType } from '../common-types';
 export enum SinkType {
   unknown = 0,
   memfile,
+  tmpfile,
   weibo,
   bilibili,
 }

@@ -44,7 +44,6 @@ export class JpegEncoder extends JpegChannel {
   constructor(usedBits: UsedBits, encoderType = EncoderType.jpegjsEncoder) {
     super(usedBits);
     this.encoderType = encoderType;
-    log("Use encoder:", EncoderType[this.encoderType]);
   }
 
   cacluateSquareImageWidth(byteLength: number) {
@@ -169,6 +168,7 @@ function getEncoder(usedBits: UsedBits, encoderType: EncoderType) {
     enc = new JpegEncoder(usedBits, encoderType);
     cachedEncoders.set(key, enc);
   }
+  log("EncodeBuffer with decoder:", EncoderType[encoderType]);
   return enc;
 }
 
@@ -180,5 +180,12 @@ export async function EncodeBuffer(ab: ArrayBuffer, usedBits: UsedBits, config: 
   if (config.maskPhotoFilePath) {
     enc.setMaskPhotoFilePath(config.maskPhotoFilePath);
   }
-  return await enc.Write(ab);
+  const startTime = new Date().getTime();
+  const result = await enc.Write(ab);
+  log(
+    "EncodeBuffer done: ab length/duration_ms",
+    ab.byteLength,
+    new Date().getTime() - startTime,
+  );
+  return result;
 }

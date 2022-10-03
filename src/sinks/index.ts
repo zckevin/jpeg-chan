@@ -1,6 +1,7 @@
 import { WeiboSink } from "./weibo";
 import { BilibiliSink } from "./bilibili";
 import { MemFileSink } from "./memfile";
+import { TmpFileSink } from "./tmpfile";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { PbFilePointer } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
@@ -23,6 +24,7 @@ class SinkDelegate {
     new WeiboSink(),
     new BilibiliSink(),
     new MemFileSink(),
+    new TmpFileSink(),
   ];
 
   constructor() { }

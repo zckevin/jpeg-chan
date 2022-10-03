@@ -13,17 +13,12 @@ const terserOptions = {
   toplevel: false,
   nameCache: null,
   ie8: false,
-  keep_classnames: undefined,
+  keep_classnames: false,
   keep_fnames: false,
   safari10: false,
 };
 
 module.exports = configs.map((config) => {
-  // add min to output filename
-  const tmp = config.output.filename.split(".");
-  tmp.splice(-1, 0, "min");
-  config.output.filename = tmp.join(".");
-
   return merge(config, {
     mode: 'production',
     optimization: {

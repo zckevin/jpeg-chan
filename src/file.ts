@@ -158,7 +158,7 @@ class BootloaderFile extends BaseFile {
     const indexFile = await IndexFile.CreateForDownload(this.blFile.indexFileHead!, this.dataDownloadConfig);
     const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize);
     const targetChunkIndexes = helper.caclulateReadChunkIndexes(pos, n + pos);
-    this.log("Read n/pos/targetChunkIndexes", n, pos, targetChunkIndexes)
+    this.log("read_n/pos/targetChunkIndexes", n, pos, targetChunkIndexes)
     const chunks = await indexFile.DownloadChunksWithWorkerPool(
       targetChunkIndexes,
       this.dataDownloadConfig,
