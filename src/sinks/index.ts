@@ -2,7 +2,7 @@ import { WeiboSink } from "./weibo";
 import { BilibiliSink } from "./bilibili";
 import { MemFileSink } from "./memfile";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { PbFileChunk } from "../../protobuf";
+import { PbFilePointer } from "../../protobuf";
 import { BasicSink, SinkType } from "./base";
 import { WorkerPool } from "../workers";
 import { find, sample } from "lodash";
@@ -57,12 +57,12 @@ class SinkDelegate {
     }
   }
 
-  async DownloadSingleFile(chunk: PbFileChunk, config: SinkDownloadConfig) {
+  async DownloadSingleFile(chunk: PbFilePointer, config: SinkDownloadConfig) {
     log("download with config", config);
     return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
   }
 
-  private downloadMultipleChunks(chunks: PbFileChunk[], config: SinkDownloadConfig, onError: (err: any) => void) {
+  private downloadMultipleChunks(chunks: PbFilePointer[], config: SinkDownloadConfig, onError: (err: any) => void) {
     return new Observable<WorkerTask>((observer) => {
       (async () => {
         const promises = chunks.map(async (chunk, index) => {
@@ -85,7 +85,7 @@ class SinkDelegate {
     });
   }
 
-  async DownloadMultipleFiles(chunks: PbFileChunk[], config: SinkDownloadConfig) {
+  async DownloadMultipleFiles(chunks: PbFilePointer[], config: SinkDownloadConfig) {
     const pool = new WorkerPool();
     const abortCtr = new AbortController();
     const usedConfig = config.cloneWithSignal(abortCtr.signal);

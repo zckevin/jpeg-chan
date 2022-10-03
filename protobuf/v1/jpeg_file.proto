@@ -1,17 +1,18 @@
 syntax = "proto2";
 package protobuf.v1;
 
-message PbFileChunk {
+message PbFilePointer {
     required uint32 size = 1;
     required string url = 2;
     required string used_bits = 3;
 }
 
-// linked list
+// could be a linked list
 message PbIndexFile {
     required bool ended = 1;
-    repeated PbFileChunk chunks = 3;
-    optional PbFileChunk next = 2;
+    repeated PbFilePointer chunks = 2;
+    // next segment of the index file
+    optional PbFilePointer next = 3;
 }
 
 message PbBootloaderFile {
@@ -20,10 +21,13 @@ message PbBootloaderFile {
     required string file_name = 3;
     required bytes aes_key = 4;
     required bytes aes_iv = 5;
-    required PbFileChunk index_file_head = 6;
+    required PbFilePointer index_file_head = 6;
 }
 
 message PbBootloaderDescription {
+    // image identifier for download from different sinks
+    // e.g. https://i2.hdslb.com/bfs/archive/2e3b2831c37cfad73ea2885ce0110e08b159ed0f.jpg
+    // id is 2e3b2831c37cfad73ea2885ce0110e08b159ed0f
     required string id = 1;
     required uint32 sink_type = 2;
     required uint32 size = 3;

@@ -3,7 +3,7 @@ import { UsedBits } from "./bits-manipulation";
 import { Tasker } from "./tasker";
 import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFileChunk } from "../protobuf";
+import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFilePointer } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { DecoderType } from './jpeg-decoder/index';
 import { EncoderType } from './jpeg-encoder/index';
@@ -26,13 +26,13 @@ class BaseFile {
 
   async uploadBuffer(buf: Buffer, uploadConfig: SinkUploadConfig) {
     const { url, usedBits } = await sinkDelegate.Upload(buf, uploadConfig);
-    const fileChunk: PbFileChunk = {
-      $type: PbFileChunk.$type,
+    const filePtr: PbFilePointer = {
+      $type: PbFilePointer.$type,
       size: buf.byteLength,
       url,
       usedBits: usedBits.toString(),
     }
-    return fileChunk;
+    return filePtr;
   }
 
   async upload<T extends UnknownMessage>(msg: T, uploadConfig: SinkUploadConfig) {
@@ -40,8 +40,8 @@ class BaseFile {
     return this.uploadBuffer(buf, uploadConfig);
   }
 
-  async download<T extends UnknownMessage>(msgTyp: MessageType, chunk: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const buf = await sinkDelegate.DownloadSingleFile(chunk, downloadConfig)
+  async download<T extends UnknownMessage>(msgTyp: MessageType, ptr: PbFilePointer, downloadConfig: SinkDownloadConfig) {
+    const buf = await sinkDelegate.DownloadSingleFile(ptr, downloadConfig)
     return msgTyp.decode(buf) as T;
   }
 }
@@ -54,23 +54,20 @@ class RawDataFile extends BaseFile {
 
 class IndexFile extends BaseFile {
   private log = debugLogger.extend('index');
-
   public indexFile: PbIndexFile;
-  public indexFilePointer: PbFileChunk;
 
   constructor() {
     super();
   }
 
-  static async CreateForDownload(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+  static async CreateForDownload(indexFilePointer: PbFilePointer, downloadConfig: SinkDownloadConfig) {
     const file = new IndexFile();
-    file.indexFilePointer = indexFilePointer;
     file.indexFile = await file.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
     file.log("create indexFilePointer/indexFile:", indexFilePointer, file.indexFile);
     return file;
   }
 
-  async GenIndexFile(chunks: PbFileChunk[], uploadConfig: SinkUploadConfig) {
+  async GenIndexFile(chunks: PbFilePointer[], uploadConfig: SinkUploadConfig) {
     const indexFile: PbIndexFile = {
       $type: PbIndexFile.$type,
       chunks: chunks,
@@ -78,23 +75,23 @@ class IndexFile extends BaseFile {
       next: undefined,
     }
     this.log("Gen from:", indexFile);
-    const chunk = await this.upload(indexFile, uploadConfig);
-    this.log("Gen result: ", chunk);
-    return chunk;
+    const indexFilePtr = await this.upload(indexFile, uploadConfig);
+    this.log("Gen result: ", indexFilePtr);
+    return indexFilePtr;
   }
 
-  async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
-    const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-    this.log("DownloadAllChunksWithWorkerPool from: ", indexFile);
-    const results = await sinkDelegate.DownloadMultipleFiles(indexFile.chunks, downloadConfig);
-    const fileBuf = Buffer.concat(results);
-    const hash = crypto.createHash("md5");
-    hash.update(fileBuf);
-    this.log("DownloadAllChunksWithWorkerPool results md5sum: ", hash.digest("hex"));
-    return fileBuf;
-  }
+  // async DownloadAllChunksWithWorkerPool(indexFilePointer: PbFilePointer, downloadConfig: SinkDownloadConfig) {
+  //   const indexFile = await this.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
+  //   this.log("DownloadAllChunksWithWorkerPool from: ", indexFile);
+  //   const results = await sinkDelegate.DownloadMultipleFiles(indexFile.chunks, downloadConfig);
+  //   const fileBuf = Buffer.concat(results);
+  //   const hash = crypto.createHash("md5");
+  //   hash.update(fileBuf);
+  //   this.log("DownloadAllChunksWithWorkerPool results md5sum: ", hash.digest("hex"));
+  //   return fileBuf;
+  // }
 
-  async DownloadChunksWithWorkerPool(indexFilePointer: PbFileChunk, chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
+  async DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
     const targetChunks = _.pullAt(this.indexFile.chunks, chunkIndexes);
     return await sinkDelegate.DownloadMultipleFiles(targetChunks, downloadConfig);
   }
@@ -110,7 +107,7 @@ class BootloaderFile extends BaseFile {
     super();
   }
 
-  static async CreateForDownload(blFilePointer: PbFileChunk, downloadConfig: SinkDownloadConfig) {
+  static async CreateForDownload(blFilePointer: PbFilePointer, downloadConfig: SinkDownloadConfig) {
     const file = new BootloaderFile();
     const blFile = await file.download<PbBootloaderFile>(PbBootloaderFile, blFilePointer, downloadConfig);
     const dataDownloadConfig = new SinkDownloadConfig(
@@ -139,7 +136,7 @@ class BootloaderFile extends BaseFile {
     fileName: string,
     aesKey: Uint8Array,
     aesIv: Uint8Array,
-    indexFileHead: PbFileChunk,
+    indexFileHead: PbFilePointer,
     uploadConfig: SinkUploadConfig,
     blPassword: Uint8Array,
   ) {
@@ -152,16 +149,16 @@ class BootloaderFile extends BaseFile {
       aesIv,
       indexFileHead,
     };
-    const bootloaderFile = await this.upload(blFile, uploadConfig);
-    this.log("Gen from: ", bootloaderFile);
+    const bootloaderFilePtr = await this.upload(blFile, uploadConfig);
+    this.log("Gen from: ", bootloaderFilePtr);
 
-    const { sinkType, id } = sinkDelegate.GetTypeAndID(bootloaderFile.url);
+    const { sinkType, id } = sinkDelegate.GetTypeAndID(bootloaderFilePtr.url);
     const blDesc: PbBootloaderDescription = {
       $type: PbBootloaderDescription.$type,
       id,
       sinkType,
-      size: bootloaderFile.size,
-      usedBits: bootloaderFile.usedBits,
+      size: bootloaderFilePtr.size,
+      usedBits: bootloaderFilePtr.usedBits,
       password: blPassword,
     }
     this.log("Gen result: ", blDesc);
@@ -174,7 +171,6 @@ class BootloaderFile extends BaseFile {
     const targetChunkIndexes = helper.caclulateReadChunkIndexes(pos, n + pos);
     this.log("Read n/pos/targetChunkIndexes", n, pos, targetChunkIndexes)
     const chunks = await indexFile.DownloadChunksWithWorkerPool(
-      this.blFile.indexFileHead!,
       targetChunkIndexes,
       this.dataDownloadConfig,
     );
@@ -244,7 +240,7 @@ export class UploadFile {
 
   async GenerateDescription() {
     // step 1. upload file data chunks, get file chunk ptr array
-    const tasks: Task<PbFileChunk>[] = [];
+    const tasks: Task<PbFilePointer>[] = [];
     for (let i = 0; i < this.n_chunks; i++) {
       const fn = async () => {
         let chunk = Buffer.alloc(this.chunkSize);
@@ -265,7 +261,7 @@ export class UploadFile {
       }
       tasks.push(fn);
     }
-    const uploadTasker = new Tasker<PbFileChunk>(tasks, this.dataUploadConfig.concurrency);
+    const uploadTasker = new Tasker<PbFilePointer>(tasks, this.dataUploadConfig.concurrency);
     await uploadTasker.done;
 
     // step 2. create/upload index file(s)
@@ -312,8 +308,8 @@ export class DownloadFile {
   static async Create(descHex: string, concurrency: number) {
     const f = new DownloadFile(descHex, concurrency);
     const { blDesc, blDownloadConfig } = f;
-    const blFileChunk: PbFileChunk = {
-      $type: PbFileChunk.$type,
+    const blFileChunk: PbFilePointer = {
+      $type: PbFilePointer.$type,
       size: blDesc.size,
       url: sinkDelegate.ExpandIDToUrl(blDesc.sinkType, blDesc.id),
       usedBits: blDesc.usedBits,

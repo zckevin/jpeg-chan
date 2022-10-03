@@ -1,12 +1,8 @@
-import { randomBytesArray, randomString } from "../../src/utils";
+import {randomString } from "../../src/utils";
 import { UploadFile, DownloadFile, ChunksHelper } from "../../src/file";
 import { fs as memfs } from 'memfs';
 import { SinkType } from "../../src/sinks/base";
 import _ from "lodash"
-
-beforeAll(() => {
-  jest.setTimeout(30_000);
-})
 
 test("ChunksHelper caclulateReadChunkIndexes", async () => {
   expect(new ChunksHelper(2, 2).caclulateReadChunkIndexes()).toEqual([0]);
@@ -28,7 +24,7 @@ test("ChunksHelper caclulateReadChunkIndexes", async () => {
     const suffix = c.slice(2);
     expect(() => ChunksHelper.prototype.caclulateReadChunkIndexes.apply(new ChunksHelper(a, b), suffix)).toThrow(/invalid params/);
   }
-});
+}, 30_000);
 
 test("ChunksHelper concatAndTrimBuffer", async () => {
   const fn = (fileSize: number, chunkSize: number) => {
@@ -53,12 +49,12 @@ test("ChunksHelper concatAndTrimBuffer", async () => {
       fn(i, j);
     }
   }
-});
+}, 30_000);
 
-test("zcsb", async () => {
-  const downloadFile = await DownloadFile.Create("invalid desc", 1);
-  await downloadFile.Read(1, 1);
-});
+// test("zcsb", async () => {
+//   const downloadFile = await DownloadFile.Create("invalid desc", 1);
+//   await downloadFile.Read(1, 1);
+// });
 
 test("Downloadfile Read with range", async () => {
   const concurrency = 1;
@@ -92,4 +88,4 @@ test("Downloadfile Read with range", async () => {
   await fn(10, 2);
   // fileSize % chunkSize != 0
   await fn(10, 3);
-})
+}, 30_000);
