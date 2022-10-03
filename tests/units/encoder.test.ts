@@ -42,7 +42,7 @@ test("encoder should work with different payload sizes", async () => {
   await Promise.all(payloadSizes.map((n) => {
     return EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, usedBits, n);
   }));
-});
+}, 60_000);
 
 test("photo mask demands usedBits's from to be greater than 1", async () => {
   await expect(async () => {
