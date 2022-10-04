@@ -1,49 +1,133 @@
 import crypto from "crypto";
-import { PbBootloaderDescription, PbMsgWithChecksum } from "./gen/protobuf/v1/jpeg_file";
+import { PbBootloaderDescription, PbBootloaderShortDescription, PbBootloaderShortDescription_ID, PbMsgWithChecksum } from "./gen/protobuf/v1/jpeg_file";
 import { MessageType, UnknownMessage } from "./gen/typeRegistry";
-import { Any } from "./gen/google/protobuf/any";
 import { assert } from "../src/assert";
 import _ from "lodash";
+import { SinkType } from "../src/common-types";
+import { UsedBits } from "../src/bits-manipulation";
 
 export * from "./gen/protobuf/v1/jpeg_file";
 export * as pbTypeRegistry from "./gen/typeRegistry";
 
-const CHECKSUM_BYTE_LENGTH = 6;
+const CHECKSUM_BYTE_LENGTH = 4;
+const DESC_ENCODING = "base64";
 
-function hashPbMessage<T extends MessageType>(typ: T, msg: UnknownMessage): Uint8Array {
+export interface BootloaderDescription {
+  id: string;
+  sinkType: SinkType;
+  size: number;
+  usedBits: UsedBits;
+  password?: Uint8Array;
+}
+
+function hashPbMessage<T extends MessageType>(ctor: T, msg: UnknownMessage): Uint8Array {
   const md5sum = crypto.createHash("md5");
-  const buf = typ.encode(msg).finish();
+  const buf = ctor.encode(msg).finish();
   md5sum.update(buf);
   return md5sum.digest().slice(0, CHECKSUM_BYTE_LENGTH);
 }
 
-export function GenDescHex(desc: PbBootloaderDescription) {
-  const checksumMsg: PbMsgWithChecksum = {
-    $type: PbMsgWithChecksum.$type,
-    msg: Any.fromJSON({
-      $type: Any.$type,
-      typeUrl: desc.$type,
-      value: PbBootloaderDescription.encode(desc).finish(),
-    }),
-    checksum: hashPbMessage(PbBootloaderDescription, desc),
-  };
-  const buf = PbMsgWithChecksum.encode(checksumMsg).finish();
-  return Buffer.from(buf).toString('hex');
+function encodeIDMsg(id: string) {
+  let buf = Buffer.from(id, "hex");
+  let isHex = true;
+  if (buf.toString("hex") !== id) {
+    buf = Buffer.from(id);
+    isHex = false;
+  }
+  return PbBootloaderShortDescription_ID.fromPartial({
+    $type: PbBootloaderShortDescription_ID.$type,
+    id: buf,
+    isHex,
+  });
 }
 
-export function ParseDescHex(descHex: string) {
-  const buf = Buffer.from(descHex, "hex");
-  const checksumMsg = PbMsgWithChecksum.decode(buf);
+function createShortDescMsg(desc: BootloaderDescription) {
+  const ctor = PbBootloaderShortDescription;
+  const msg = ctor.fromPartial({
+    $type: ctor.$type,
+    id: encodeIDMsg(desc.id),
+    sinkType: desc.sinkType,
+    size: desc.size,
+    usedBits: Buffer.from(desc.usedBits.toString()),
+  });
+  return {
+    msg,
+    checksum: hashPbMessage(ctor, msg),
+  }
+}
+
+function createDescMsg(desc: BootloaderDescription) {
+  const ctor = PbBootloaderDescription;
+  const msg = ctor.fromPartial({
+    $type: ctor.$type,
+    desc: createShortDescMsg(desc).msg,
+    password: desc.password,
+  });
+  return {
+    msg,
+    checksum: hashPbMessage(ctor, msg),
+  }
+}
+
+export function GenDescString(desc: BootloaderDescription, useShortDesc = false) {
+  const { msg, checksum } = useShortDesc ? createShortDescMsg(desc) : createDescMsg(desc);
+  const checksumMsg: PbMsgWithChecksum = {
+    $type: PbMsgWithChecksum.$type,
+    longMsg: useShortDesc ? undefined : (msg as PbBootloaderDescription),
+    shortMsg: useShortDesc ? (msg as PbBootloaderShortDescription) : undefined,
+    checksum: checksum,
+  };
+  return Buffer.from(PbMsgWithChecksum.encode(checksumMsg).finish()).toString(DESC_ENCODING);
+}
+
+
+function parseAndVerifyChecksum<T extends MessageType>(ctor: T, buf: Uint8Array, expected: Uint8Array) {
+  const msg = ctor.decode(buf);
+  const checksum = hashPbMessage(ctor, msg);
   assert(
-    (checksumMsg.msg !== undefined) && 
-    (checksumMsg.msg.typeUrl === PbBootloaderDescription.$type),
-    "ParseDescHex error: typeUrl mismatch"
-  );
-  const desc = PbBootloaderDescription.decode(checksumMsg.msg.value);
-  const checksum = hashPbMessage(PbBootloaderDescription, desc);
-  assert(
-    _.isEqual(checksum, checksumMsg.checksum),
+    _.isEqual(checksum, expected),
     "ParseDescHex error: checksum mismatch"
   );
-  return desc;
+  return msg;
+}
+
+function createBootloaderDescription(descMsg: PbBootloaderShortDescription): BootloaderDescription {
+  return {
+    id: Buffer.from(descMsg.id.id).toString(descMsg.id.isHex ? "hex" : "ascii"),
+    sinkType: descMsg.sinkType,
+    size: descMsg.size,
+    usedBits: UsedBits.fromString(Buffer.from(descMsg.usedBits).toString()),
+  };
+}
+
+export function ParseDescString(desc: string): BootloaderDescription {
+  const buf = Buffer.from(desc, DESC_ENCODING);
+  const checksumMsg = PbMsgWithChecksum.decode(buf);
+  assert(
+    !(checksumMsg.longMsg === undefined && checksumMsg.shortMsg === undefined),
+    "ParseDescHex error: invalid message"
+  );
+
+  let ctor: MessageType;
+  let fromMsg: UnknownMessage;
+  if (checksumMsg.longMsg) {
+    ctor = PbBootloaderDescription;
+    fromMsg = checksumMsg.longMsg;
+  } else {
+    ctor = PbBootloaderShortDescription;
+    fromMsg = checksumMsg.shortMsg;
+  }
+  const msg = parseAndVerifyChecksum(ctor, ctor.encode(fromMsg).finish(), checksumMsg.checksum);
+  switch (msg.$type) {
+    case PbBootloaderDescription.$type: {
+      return {
+        ...createBootloaderDescription((msg as PbBootloaderDescription).desc),
+        password: (msg as PbBootloaderDescription).password,
+      };
+    }
+    case PbBootloaderShortDescription.$type:
+      return createBootloaderDescription(msg as PbBootloaderShortDescription);
+    default:
+      throw new Error(`ParseDescHex error: invalid type: ${msg.$type}`);
+  }
 }

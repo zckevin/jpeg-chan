@@ -1,6 +1,5 @@
 /* eslint-disable */
 import * as _m0 from "protobufjs/minimal";
-import { Any } from "../../google/protobuf/any";
 import { messageTypeRegistry } from "../../typeRegistry";
 
 export const protobufPackage = "protobuf.v1";
@@ -33,22 +32,34 @@ export interface PbBootloaderFile {
 
 export interface PbBootloaderDescription {
   $type: "protobuf.v1.PbBootloaderDescription";
+  desc: PbBootloaderShortDescription | undefined;
+  password: Uint8Array;
+}
+
+export interface PbBootloaderShortDescription {
+  $type: "protobuf.v1.PbBootloaderShortDescription";
   /**
    * image identifier for download from different sinks
    * e.g. https://i2.hdslb.com/bfs/archive/2e3b2831c37cfad73ea2885ce0110e08b159ed0f.jpg
    * id is 2e3b2831c37cfad73ea2885ce0110e08b159ed0f
    */
-  id: string;
+  id: PbBootloaderShortDescription_ID | undefined;
   sinkType: number;
   size: number;
-  usedBits: string;
-  password: Uint8Array;
+  usedBits: Uint8Array;
+}
+
+export interface PbBootloaderShortDescription_ID {
+  $type: "protobuf.v1.PbBootloaderShortDescription.ID";
+  id: Uint8Array;
+  isHex: boolean;
 }
 
 export interface PbMsgWithChecksum {
   $type: "protobuf.v1.PbMsgWithChecksum";
-  msg: Any | undefined;
   checksum: Uint8Array;
+  longMsg: PbBootloaderDescription | undefined;
+  shortMsg: PbBootloaderShortDescription | undefined;
 }
 
 function createBasePbFilePointer(): PbFilePointer {
@@ -314,34 +325,18 @@ export const PbBootloaderFile = {
 messageTypeRegistry.set(PbBootloaderFile.$type, PbBootloaderFile);
 
 function createBasePbBootloaderDescription(): PbBootloaderDescription {
-  return {
-    $type: "protobuf.v1.PbBootloaderDescription",
-    id: "",
-    sinkType: 0,
-    size: 0,
-    usedBits: "",
-    password: new Uint8Array(),
-  };
+  return { $type: "protobuf.v1.PbBootloaderDescription", desc: undefined, password: new Uint8Array() };
 }
 
 export const PbBootloaderDescription = {
   $type: "protobuf.v1.PbBootloaderDescription" as const,
 
   encode(message: PbBootloaderDescription, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.id !== "") {
-      writer.uint32(10).string(message.id);
-    }
-    if (message.sinkType !== 0) {
-      writer.uint32(16).uint32(message.sinkType);
-    }
-    if (message.size !== 0) {
-      writer.uint32(24).uint32(message.size);
-    }
-    if (message.usedBits !== "") {
-      writer.uint32(34).string(message.usedBits);
+    if (message.desc !== undefined) {
+      PbBootloaderShortDescription.encode(message.desc, writer.uint32(10).fork()).ldelim();
     }
     if (message.password.length !== 0) {
-      writer.uint32(42).bytes(message.password);
+      writer.uint32(18).bytes(message.password);
     }
     return writer;
   },
@@ -354,18 +349,9 @@ export const PbBootloaderDescription = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.id = reader.string();
+          message.desc = PbBootloaderShortDescription.decode(reader, reader.uint32());
           break;
         case 2:
-          message.sinkType = reader.uint32();
-          break;
-        case 3:
-          message.size = reader.uint32();
-          break;
-        case 4:
-          message.usedBits = reader.string();
-          break;
-        case 5:
           message.password = reader.bytes();
           break;
         default:
@@ -379,20 +365,15 @@ export const PbBootloaderDescription = {
   fromJSON(object: any): PbBootloaderDescription {
     return {
       $type: PbBootloaderDescription.$type,
-      id: isSet(object.id) ? String(object.id) : "",
-      sinkType: isSet(object.sinkType) ? Number(object.sinkType) : 0,
-      size: isSet(object.size) ? Number(object.size) : 0,
-      usedBits: isSet(object.usedBits) ? String(object.usedBits) : "",
+      desc: isSet(object.desc) ? PbBootloaderShortDescription.fromJSON(object.desc) : undefined,
       password: isSet(object.password) ? bytesFromBase64(object.password) : new Uint8Array(),
     };
   },
 
   toJSON(message: PbBootloaderDescription): unknown {
     const obj: any = {};
-    message.id !== undefined && (obj.id = message.id);
-    message.sinkType !== undefined && (obj.sinkType = Math.round(message.sinkType));
-    message.size !== undefined && (obj.size = Math.round(message.size));
-    message.usedBits !== undefined && (obj.usedBits = message.usedBits);
+    message.desc !== undefined &&
+      (obj.desc = message.desc ? PbBootloaderShortDescription.toJSON(message.desc) : undefined);
     message.password !== undefined &&
       (obj.password = base64FromBytes(message.password !== undefined ? message.password : new Uint8Array()));
     return obj;
@@ -400,10 +381,9 @@ export const PbBootloaderDescription = {
 
   fromPartial<I extends Exact<DeepPartial<PbBootloaderDescription>, I>>(object: I): PbBootloaderDescription {
     const message = createBasePbBootloaderDescription();
-    message.id = object.id ?? "";
-    message.sinkType = object.sinkType ?? 0;
-    message.size = object.size ?? 0;
-    message.usedBits = object.usedBits ?? "";
+    message.desc = (object.desc !== undefined && object.desc !== null)
+      ? PbBootloaderShortDescription.fromPartial(object.desc)
+      : undefined;
     message.password = object.password ?? new Uint8Array();
     return message;
   },
@@ -411,19 +391,182 @@ export const PbBootloaderDescription = {
 
 messageTypeRegistry.set(PbBootloaderDescription.$type, PbBootloaderDescription);
 
+function createBasePbBootloaderShortDescription(): PbBootloaderShortDescription {
+  return {
+    $type: "protobuf.v1.PbBootloaderShortDescription",
+    id: undefined,
+    sinkType: 0,
+    size: 0,
+    usedBits: new Uint8Array(),
+  };
+}
+
+export const PbBootloaderShortDescription = {
+  $type: "protobuf.v1.PbBootloaderShortDescription" as const,
+
+  encode(message: PbBootloaderShortDescription, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.id !== undefined) {
+      PbBootloaderShortDescription_ID.encode(message.id, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.sinkType !== 0) {
+      writer.uint32(16).uint32(message.sinkType);
+    }
+    if (message.size !== 0) {
+      writer.uint32(24).uint32(message.size);
+    }
+    if (message.usedBits.length !== 0) {
+      writer.uint32(34).bytes(message.usedBits);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PbBootloaderShortDescription {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePbBootloaderShortDescription();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.id = PbBootloaderShortDescription_ID.decode(reader, reader.uint32());
+          break;
+        case 2:
+          message.sinkType = reader.uint32();
+          break;
+        case 3:
+          message.size = reader.uint32();
+          break;
+        case 4:
+          message.usedBits = reader.bytes();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PbBootloaderShortDescription {
+    return {
+      $type: PbBootloaderShortDescription.$type,
+      id: isSet(object.id) ? PbBootloaderShortDescription_ID.fromJSON(object.id) : undefined,
+      sinkType: isSet(object.sinkType) ? Number(object.sinkType) : 0,
+      size: isSet(object.size) ? Number(object.size) : 0,
+      usedBits: isSet(object.usedBits) ? bytesFromBase64(object.usedBits) : new Uint8Array(),
+    };
+  },
+
+  toJSON(message: PbBootloaderShortDescription): unknown {
+    const obj: any = {};
+    message.id !== undefined && (obj.id = message.id ? PbBootloaderShortDescription_ID.toJSON(message.id) : undefined);
+    message.sinkType !== undefined && (obj.sinkType = Math.round(message.sinkType));
+    message.size !== undefined && (obj.size = Math.round(message.size));
+    message.usedBits !== undefined &&
+      (obj.usedBits = base64FromBytes(message.usedBits !== undefined ? message.usedBits : new Uint8Array()));
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<PbBootloaderShortDescription>, I>>(object: I): PbBootloaderShortDescription {
+    const message = createBasePbBootloaderShortDescription();
+    message.id = (object.id !== undefined && object.id !== null)
+      ? PbBootloaderShortDescription_ID.fromPartial(object.id)
+      : undefined;
+    message.sinkType = object.sinkType ?? 0;
+    message.size = object.size ?? 0;
+    message.usedBits = object.usedBits ?? new Uint8Array();
+    return message;
+  },
+};
+
+messageTypeRegistry.set(PbBootloaderShortDescription.$type, PbBootloaderShortDescription);
+
+function createBasePbBootloaderShortDescription_ID(): PbBootloaderShortDescription_ID {
+  return { $type: "protobuf.v1.PbBootloaderShortDescription.ID", id: new Uint8Array(), isHex: false };
+}
+
+export const PbBootloaderShortDescription_ID = {
+  $type: "protobuf.v1.PbBootloaderShortDescription.ID" as const,
+
+  encode(message: PbBootloaderShortDescription_ID, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.id.length !== 0) {
+      writer.uint32(10).bytes(message.id);
+    }
+    if (message.isHex === true) {
+      writer.uint32(16).bool(message.isHex);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PbBootloaderShortDescription_ID {
+    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePbBootloaderShortDescription_ID();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          message.id = reader.bytes();
+          break;
+        case 2:
+          message.isHex = reader.bool();
+          break;
+        default:
+          reader.skipType(tag & 7);
+          break;
+      }
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PbBootloaderShortDescription_ID {
+    return {
+      $type: PbBootloaderShortDescription_ID.$type,
+      id: isSet(object.id) ? bytesFromBase64(object.id) : new Uint8Array(),
+      isHex: isSet(object.isHex) ? Boolean(object.isHex) : false,
+    };
+  },
+
+  toJSON(message: PbBootloaderShortDescription_ID): unknown {
+    const obj: any = {};
+    message.id !== undefined && (obj.id = base64FromBytes(message.id !== undefined ? message.id : new Uint8Array()));
+    message.isHex !== undefined && (obj.isHex = message.isHex);
+    return obj;
+  },
+
+  fromPartial<I extends Exact<DeepPartial<PbBootloaderShortDescription_ID>, I>>(
+    object: I,
+  ): PbBootloaderShortDescription_ID {
+    const message = createBasePbBootloaderShortDescription_ID();
+    message.id = object.id ?? new Uint8Array();
+    message.isHex = object.isHex ?? false;
+    return message;
+  },
+};
+
+messageTypeRegistry.set(PbBootloaderShortDescription_ID.$type, PbBootloaderShortDescription_ID);
+
 function createBasePbMsgWithChecksum(): PbMsgWithChecksum {
-  return { $type: "protobuf.v1.PbMsgWithChecksum", msg: undefined, checksum: new Uint8Array() };
+  return {
+    $type: "protobuf.v1.PbMsgWithChecksum",
+    checksum: new Uint8Array(),
+    longMsg: undefined,
+    shortMsg: undefined,
+  };
 }
 
 export const PbMsgWithChecksum = {
   $type: "protobuf.v1.PbMsgWithChecksum" as const,
 
   encode(message: PbMsgWithChecksum, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.msg !== undefined) {
-      Any.encode(message.msg, writer.uint32(10).fork()).ldelim();
-    }
     if (message.checksum.length !== 0) {
-      writer.uint32(18).bytes(message.checksum);
+      writer.uint32(10).bytes(message.checksum);
+    }
+    if (message.longMsg !== undefined) {
+      PbBootloaderDescription.encode(message.longMsg, writer.uint32(18).fork()).ldelim();
+    }
+    if (message.shortMsg !== undefined) {
+      PbBootloaderShortDescription.encode(message.shortMsg, writer.uint32(26).fork()).ldelim();
     }
     return writer;
   },
@@ -436,10 +579,13 @@ export const PbMsgWithChecksum = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.msg = Any.decode(reader, reader.uint32());
+          message.checksum = reader.bytes();
           break;
         case 2:
-          message.checksum = reader.bytes();
+          message.longMsg = PbBootloaderDescription.decode(reader, reader.uint32());
+          break;
+        case 3:
+          message.shortMsg = PbBootloaderShortDescription.decode(reader, reader.uint32());
           break;
         default:
           reader.skipType(tag & 7);
@@ -452,23 +598,32 @@ export const PbMsgWithChecksum = {
   fromJSON(object: any): PbMsgWithChecksum {
     return {
       $type: PbMsgWithChecksum.$type,
-      msg: isSet(object.msg) ? Any.fromJSON(object.msg) : undefined,
       checksum: isSet(object.checksum) ? bytesFromBase64(object.checksum) : new Uint8Array(),
+      longMsg: isSet(object.longMsg) ? PbBootloaderDescription.fromJSON(object.longMsg) : undefined,
+      shortMsg: isSet(object.shortMsg) ? PbBootloaderShortDescription.fromJSON(object.shortMsg) : undefined,
     };
   },
 
   toJSON(message: PbMsgWithChecksum): unknown {
     const obj: any = {};
-    message.msg !== undefined && (obj.msg = message.msg ? Any.toJSON(message.msg) : undefined);
     message.checksum !== undefined &&
       (obj.checksum = base64FromBytes(message.checksum !== undefined ? message.checksum : new Uint8Array()));
+    message.longMsg !== undefined &&
+      (obj.longMsg = message.longMsg ? PbBootloaderDescription.toJSON(message.longMsg) : undefined);
+    message.shortMsg !== undefined &&
+      (obj.shortMsg = message.shortMsg ? PbBootloaderShortDescription.toJSON(message.shortMsg) : undefined);
     return obj;
   },
 
   fromPartial<I extends Exact<DeepPartial<PbMsgWithChecksum>, I>>(object: I): PbMsgWithChecksum {
     const message = createBasePbMsgWithChecksum();
-    message.msg = (object.msg !== undefined && object.msg !== null) ? Any.fromPartial(object.msg) : undefined;
     message.checksum = object.checksum ?? new Uint8Array();
+    message.longMsg = (object.longMsg !== undefined && object.longMsg !== null)
+      ? PbBootloaderDescription.fromPartial(object.longMsg)
+      : undefined;
+    message.shortMsg = (object.shortMsg !== undefined && object.shortMsg !== null)
+      ? PbBootloaderShortDescription.fromPartial(object.shortMsg)
+      : undefined;
     return message;
   },
 };

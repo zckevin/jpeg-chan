@@ -1,4 +1,5 @@
-import { BasicSink, SinkType } from "./base";
+import { BasicSink } from "./base";
+import { SinkType } from "../common-types";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { randomString } from "../utils";

@@ -1,0 +1,32 @@
+syntax = "proto2";
+package protobuf.v1;
+
+message PbBytesID {
+    required bytes id = 1;
+}
+
+message PbStringId {
+    required string id = 1;
+}
+
+message PbTest {
+    message ID {
+        required bytes id = 1;
+        required bool is_hex = 2;
+    }
+    required ID id = 1;
+    required uint32 sink_type = 3;
+    required uint32 size = 4;
+    required bytes used_bits = 5;
+}
+
+message PbTest3 {
+    required PbTest msg = 1;
+    required bytes password = 2;
+}
+
+message PbTest2 {
+    required PbTest msg = 1;
+    required PbTest3 msg2 = 2;
+    required bytes checksum = 3;
+}

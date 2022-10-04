@@ -2,7 +2,7 @@ const { DownloadFile } = require("../../packages/jpeg-file/dist/index.js")
 import { randomString } from "../../src/utils";
 import { UploadFile } from "../../src/file";
 import { fs as memfs } from 'memfs';
-import { SinkType } from "../../src/sinks/base";
+import { SinkType } from "../../src/common-types";
 import _ from "lodash"
 
 test("Downloadfile from jpeg-file package should work", async () => {

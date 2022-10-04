@@ -3,10 +3,9 @@ import { UsedBits } from "./bits-manipulation";
 import { Tasker } from "./tasker";
 import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import { PbIndexFile, PbBootloaderFile, PbBootloaderDescription, PbFilePointer, GenDescHex, ParseDescHex } from "../protobuf";
+import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescString, BootloaderDescription } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
-import { EncoderType, DecoderType } from './common-types';
-import { SinkType } from './sinks/base';
+import { EncoderType, DecoderType, SinkType } from './common-types';
 import { Task } from './tasker';
 import { NewCipherConfigFromPassword } from "./encryption"
 import path from 'path';
@@ -120,6 +119,7 @@ class BootloaderFile extends BaseFile {
   // }
 
   async GenDescription(
+    useShortDesc: boolean,
     fileSize: number,
     chunkSize: number,
     fileName: string,
@@ -142,16 +142,15 @@ class BootloaderFile extends BaseFile {
     this.log("Gen from: ", bootloaderFilePtr);
 
     const { sinkType, id } = sinkDelegate.GetTypeAndID(bootloaderFilePtr.url);
-    const blDesc: PbBootloaderDescription = {
-      $type: PbBootloaderDescription.$type,
+    const blDesc: BootloaderDescription = {
       id,
       sinkType,
       size: bootloaderFilePtr.size,
-      usedBits: bootloaderFilePtr.usedBits,
+      usedBits: UsedBits.fromString(bootloaderFilePtr.usedBits),
       password: blPassword,
     }
     this.log("Gen result: ", blDesc);
-    return GenDescHex(blDesc);
+    return GenDescString(blDesc, useShortDesc);
   }
 
   async Read(n: number, pos: number = 0) {
@@ -227,7 +226,7 @@ export class UploadFile {
     );
   }
 
-  async GenerateDescription() {
+  async GenerateDescription(useShortDesc = false) {
     // step 1. upload file data chunks, get file chunk ptr array
     const tasks: Task<PbFilePointer>[] = [];
     for (let i = 0; i < this.n_chunks; i++) {
@@ -259,7 +258,8 @@ export class UploadFile {
 
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()
-    const descHex = await bootloaderFile.GenDescription(
+    const descStr = await bootloaderFile.GenDescription(
+      useShortDesc,
       this.fileSize,
       this.chunkSize,
       this.fileName,
@@ -269,38 +269,39 @@ export class UploadFile {
       this.blUploadConfig,
       this.blPassword,
     );
-    return descHex;
+    return descStr;
   }
 }
 
 export class DownloadFile {
   private log = debugLogger.extend('download');
 
-  public blDesc: PbBootloaderDescription;
+  public blDesc: BootloaderDescription;
   public blDownloadConfig: SinkDownloadConfig;
   public bl: BootloaderFile;
 
-  constructor(descHex: string, concurrency: number) {
-    this.blDesc = ParseDescHex(descHex);
+  constructor(descStr: string, concurrency: number, password: Uint8Array) {
+    this.blDesc = ParseDescString(descStr);
+    assert(this.blDesc.password || password, "no password found in desc or input");
     this.log("Desc: ", this.blDesc);
 
     this.blDownloadConfig = new SinkDownloadConfig(
-      UsedBits.fromString(this.blDesc.usedBits), // usedBits
-      NewCipherConfigFromPassword(this.blDesc.password),
+      this.blDesc.usedBits,
+      NewCipherConfigFromPassword(this.blDesc.password || password),
       concurrency,
       DecoderType.wasmDecoder,
       null, // abort signal
     );
   }
 
-  static async Create(descHex: string, concurrency: number) {
-    const f = new DownloadFile(descHex, concurrency);
+  static async Create(descStr: string, concurrency: number, password?: Uint8Array) {
+    const f = new DownloadFile(descStr, concurrency, password);
     const { blDesc, blDownloadConfig } = f;
     const blFileChunk: PbFilePointer = {
       $type: PbFilePointer.$type,
       size: blDesc.size,
       url: sinkDelegate.ExpandIDToUrl(blDesc.sinkType, blDesc.id),
-      usedBits: blDesc.usedBits,
+      usedBits: blDesc.usedBits.toString(),
     }
     f.bl = await BootloaderFile.CreateForDownload(blFileChunk, blDownloadConfig);
     return f;

@@ -2,7 +2,8 @@
  * Refer to https://github.com/xlzy520/typora-plugin-bilibili
  */
 
-import { BasicSink, SinkType } from "./base";
+import { BasicSink } from "./base";
+import { SinkType } from "../common-types";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { NodeH2Fetch } from "./h2fetch";

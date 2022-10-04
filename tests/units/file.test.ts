@@ -1,7 +1,7 @@
 import { randomString } from "../../src/utils";
 import { UploadFile, DownloadFile, ChunksHelper } from "../../src/file";
 import { fs as memfs } from 'memfs';
-import { SinkType } from "../../src/sinks/base";
+import { SinkType } from "../../src/common-types";
 import _ from "lodash"
 
 test("ChunksHelper caclulateReadChunkIndexes", async () => {
@@ -84,3 +84,28 @@ test("Downloadfile Read with range", async () => {
   // fileSize % chunkSize != 0
   await fn(10, 3);
 }, 60_000);
+
+test("Download with short desc", async () => {
+  const fileSize = 10, chunkSize = 3;
+  const concurrency = 1;
+  const buf = Buffer.from(_.range(0, fileSize));
+  const filePath = `/${randomString()}.file`;
+  memfs.writeFileSync(filePath, buf);
+  const uf = new UploadFile(
+    filePath,
+    chunkSize,
+    concurrency,
+    false,
+    memfs,
+    SinkType.memfile,
+  );
+  const desc = await uf.GenerateDescription(true);
+
+  await expect(DownloadFile.Create(desc, concurrency)).rejects.toThrow(/no password found/);
+
+  const downloadFile = await DownloadFile.Create(desc, concurrency, uf.blPassword);
+  const myBufferSlice = async (start: number, end: number) => {
+    return await downloadFile.Read(end - start, start);
+  }
+  expect(await myBufferSlice(1, 8)).toEqual(buf.slice(1, 8));
+});

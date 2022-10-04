@@ -1,8 +1,6 @@
 syntax = "proto2";
 package protobuf.v1;
 
-import "google/protobuf/any.proto";
-
 message PbFilePointer {
     required uint32 size = 1;
     required string url = 2;
@@ -27,17 +25,26 @@ message PbBootloaderFile {
 }
 
 message PbBootloaderDescription {
+    required PbBootloaderShortDescription desc = 1;
+    required bytes password = 2;
+}
+
+message PbBootloaderShortDescription {
+    message ID {
+        required bytes id = 1;
+        required bool is_hex = 2;
+    }
     // image identifier for download from different sinks
     // e.g. https://i2.hdslb.com/bfs/archive/2e3b2831c37cfad73ea2885ce0110e08b159ed0f.jpg
     // id is 2e3b2831c37cfad73ea2885ce0110e08b159ed0f
-    required string id = 1;
+    required ID id = 1;
     required uint32 sink_type = 2;
     required uint32 size = 3;
-    required string used_bits = 4;
-    required bytes password = 5;
+    required bytes used_bits = 4;
 }
 
 message PbMsgWithChecksum {
-    required google.protobuf.Any msg = 1;
-    required bytes checksum = 2;
+    required bytes checksum = 1;
+    required PbBootloaderDescription long_msg = 2;
+    required PbBootloaderShortDescription short_msg = 3;
 }

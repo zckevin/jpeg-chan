@@ -1,3 +1,11 @@
+export enum SinkType {
+  unknown = 0,
+  memfile,
+  tmpfile,
+  weibo,
+  bilibili,
+}
+
 export enum DecoderType {
   browserDecoder = 1,
   jpegjsDecoder,

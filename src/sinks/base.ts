@@ -6,15 +6,7 @@ import { isNode } from "browser-or-node";
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
 import { EncodeBuffer } from '../jpeg-encoder';
 import { DecodeBuffer } from '../jpeg-decoder';
-import { DecoderType } from '../common-types';
-
-export enum SinkType {
-  unknown = 0,
-  memfile,
-  tmpfile,
-  weibo,
-  bilibili,
-}
+import { SinkType, DecoderType } from '../common-types';
 
 export class BasicSink {
   protected supportsHTTP2 = false;
