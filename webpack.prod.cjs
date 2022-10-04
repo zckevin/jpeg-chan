@@ -1,6 +1,7 @@
 const merge = require('webpack-merge');
 const { configs } = require('./webpack.common.cjs');
 const TerserPlugin = require("terser-webpack-plugin");
+const WebpackObfuscator = require('webpack-obfuscator');
 
 const terserOptions = {
   ecma: undefined,
@@ -25,6 +26,11 @@ module.exports = configs.map((config) => {
       minimize: true,
       minimizer: [new TerserPlugin({ terserOptions })],
     },
+    plugins: [
+      new WebpackObfuscator({
+        rotateStringArray: true
+      })
+    ]
   })
 });
 

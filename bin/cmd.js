@@ -1,14 +1,8 @@
-import { Command } from 'commander';
-import crypto from 'crypto';
-import fs from "fs";
-import { fs as memfs } from 'memfs';
-
-import { UsedBits } from "../src/bits-manipulation.js";
-import { assert } from "../src/assert.js";
-import { DownloadFile, UploadFile } from "../src/file.js"
-import { SinkType_BILIBILI_BFS_ALBUM, pbFactory, SinkType_WEIBO_WX_SINAIMG } from "../src/protobuf/pb.js";
-import { sinkDelegate } from "../src/sinks/delegate.js";
-import { CipherConfig, SinkUploadConfig } from "../src/config.js";
+const { Command } = require('commander');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const memfs = require('memfs').fs;
+const { SinkType, UploadFile, DownloadFile } = require("../packages/jpeg-file/dist/index.js");
 
 function parseChunkSize(size) {
   let n;
@@ -24,71 +18,32 @@ function parseChunkSize(size) {
   return n;
 }
 
+function parseSinkType(sinkType) {
+  switch (sinkType) {
+    case "bili": {
+      return SinkType.bilibili;
+    }
+    case "wb": {
+      return SinkType.weibo;
+    }
+  }
+  throw new Error(`Unkown sink type: ${options.sinkType}`)
+}
+
 const program = new Command();
 
 program
   .command('test')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
-  .argument('<usedBits>', 'which bits to use as data carrier, format: from-to, from >= 1, to <= 8', String)
-  .option('-p, --maskPhotoFilePath <maskPhotoFilePath>', 'the photo path that is used as mask')
-  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
-  .action(async (size, usedBits, options) => {
-    let sinkType = null;
-    if (options.sinkType) {
-      switch (options.sinkType) {
-        case "bili": {
-          sinkType = SinkType_BILIBILI_BFS_ALBUM;
-          break;
-        }
-        case "wb": {
-          sinkType = SinkType_WEIBO_WX_SINAIMG;
-          break;
-        }
-        default: {
-          throw new Error(`Unkown sink type: ${options.sinkType}`)
-        }
-      }
-    }
-    const uploadConfig = new SinkUploadConfig(
-      new UsedBits(usedBits), // usedBits
-      new CipherConfig("aes-128-gcm", crypto.randomBytes(16), crypto.randomBytes(12)),
-      1, // concurrency
-      true, // validate
-      options.maskPhotoFilePath, // maskPhotoFilePath
-      null, // encoder
-      sinkType, // sinkType
-    );
-    console.log(await sinkDelegate.Upload(crypto.randomBytes(parseChunkSize(size)), uploadConfig));
-  });
-
-program
-  .command('uploadRandom')
-  .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
-  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
   .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
   .option('--no-validate', 'do not do validation')
   .action(async (size, chunkSize, options) => {
-    let sinkType = null;
-    if (options.sinkType) {
-      switch (options.sinkType) {
-        case "bili": {
-          sinkType = SinkType_BILIBILI_BFS_ALBUM;
-          break;
-        }
-        case "wb": {
-          sinkType = SinkType_WEIBO_WX_SINAIMG;
-          break;
-        }
-        default: {
-          throw new Error(`Unkown sink type: ${options.sinkType}`)
-        }
-      }
-    }
+    const sinkType = parseSinkType(options.sinkType);
     const filePath = "/1.file";
-    memfs.writeFileSync(filePath, crypto.randomBytes(parseChunkSize(size)));
-
-    await pbFactory.initPb();
+    const buf = crypto.randomBytes(parseChunkSize(size));
+    memfs.writeFileSync(filePath, buf);
     const f = new UploadFile(
       filePath,
       parseChunkSize(chunkSize),
@@ -97,37 +52,18 @@ program
       memfs,
       sinkType
     );
-    const descHex = await f.GenerateDescription()
-    console.log(descHex);
+    console.log(await f.GenerateDescription());
   });
 
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
-  .option('-s, --sinkType <sinkType>', 'use only this kind of sink')
+  .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
   .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
   .option('--no-validate', 'do not do validation')
   .action(async (filePath, chunkSize, options) => {
-    let sinkType = null;
-    if (options.sinkType) {
-      switch (options.sinkType) {
-        case "bili": {
-          sinkType = SinkType_BILIBILI_BFS_ALBUM;
-          break;
-        }
-        case "wb": {
-          sinkType = SinkType_WEIBO_WX_SINAIMG;
-          break;
-        }
-        default: {
-          throw new Error(`Unkown sink type: ${options.sinkType}`)
-        }
-      }
-    }
-
-    await pbFactory.initPb();
-    console.log(options.validate)
+    const sinkType = parseSinkType(options.sinkType);
     const f = new UploadFile(
       filePath,
       parseChunkSize(chunkSize),
@@ -136,19 +72,15 @@ program
       fs,
       sinkType
     );
-    const descHex = await f.GenerateDescription()
-    console.log(descHex);
+    console.log(await f.GenerateDescription());
   });
 
 program
   .command('download')
-  .argument('<desc>', 'desc hex string', String)
-  .option('-o, --output <outputFilePath>', 'the download file path')
-  .option('-c, --concurrency <concurrency>', 'download concurrency', "50")
+  .argument('<desc>', 'desc string', String)
   .action(async (desc, options) => {
-    await pbFactory.initPb();
-    const f = new DownloadFile(desc, parseInt(options.concurrency));
-    await f.Download(options.outputFilePath);
+    const f = await DownloadFile.Create(desc, 1);
+    await f.SaveToFile();
   });
 
 program.parse(process.argv);

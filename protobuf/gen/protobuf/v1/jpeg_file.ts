@@ -22,12 +22,13 @@ export interface PbIndexFile {
 
 export interface PbBootloaderFile {
   $type: "protobuf.v1.PbBootloaderFile";
+  indexFileHead: PbFilePointer | undefined;
   fileSize: number;
   chunkSize: number;
   fileName: string;
   aesKey: Uint8Array;
   aesIv: Uint8Array;
-  indexFileHead: PbFilePointer | undefined;
+  checksum: Uint8Array;
 }
 
 export interface PbBootloaderDescription {
@@ -215,12 +216,13 @@ messageTypeRegistry.set(PbIndexFile.$type, PbIndexFile);
 function createBasePbBootloaderFile(): PbBootloaderFile {
   return {
     $type: "protobuf.v1.PbBootloaderFile",
+    indexFileHead: undefined,
     fileSize: 0,
     chunkSize: 0,
     fileName: "",
     aesKey: new Uint8Array(),
     aesIv: new Uint8Array(),
-    indexFileHead: undefined,
+    checksum: new Uint8Array(),
   };
 }
 
@@ -228,23 +230,26 @@ export const PbBootloaderFile = {
   $type: "protobuf.v1.PbBootloaderFile" as const,
 
   encode(message: PbBootloaderFile, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.indexFileHead !== undefined) {
+      PbFilePointer.encode(message.indexFileHead, writer.uint32(10).fork()).ldelim();
+    }
     if (message.fileSize !== 0) {
-      writer.uint32(8).uint32(message.fileSize);
+      writer.uint32(16).uint32(message.fileSize);
     }
     if (message.chunkSize !== 0) {
-      writer.uint32(16).uint32(message.chunkSize);
+      writer.uint32(24).uint32(message.chunkSize);
     }
     if (message.fileName !== "") {
-      writer.uint32(26).string(message.fileName);
+      writer.uint32(34).string(message.fileName);
     }
     if (message.aesKey.length !== 0) {
-      writer.uint32(34).bytes(message.aesKey);
+      writer.uint32(42).bytes(message.aesKey);
     }
     if (message.aesIv.length !== 0) {
-      writer.uint32(42).bytes(message.aesIv);
+      writer.uint32(50).bytes(message.aesIv);
     }
-    if (message.indexFileHead !== undefined) {
-      PbFilePointer.encode(message.indexFileHead, writer.uint32(50).fork()).ldelim();
+    if (message.checksum.length !== 0) {
+      writer.uint32(58).bytes(message.checksum);
     }
     return writer;
   },
@@ -257,22 +262,25 @@ export const PbBootloaderFile = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.fileSize = reader.uint32();
+          message.indexFileHead = PbFilePointer.decode(reader, reader.uint32());
           break;
         case 2:
-          message.chunkSize = reader.uint32();
+          message.fileSize = reader.uint32();
           break;
         case 3:
-          message.fileName = reader.string();
+          message.chunkSize = reader.uint32();
           break;
         case 4:
-          message.aesKey = reader.bytes();
+          message.fileName = reader.string();
           break;
         case 5:
-          message.aesIv = reader.bytes();
+          message.aesKey = reader.bytes();
           break;
         case 6:
-          message.indexFileHead = PbFilePointer.decode(reader, reader.uint32());
+          message.aesIv = reader.bytes();
+          break;
+        case 7:
+          message.checksum = reader.bytes();
           break;
         default:
           reader.skipType(tag & 7);
@@ -285,17 +293,20 @@ export const PbBootloaderFile = {
   fromJSON(object: any): PbBootloaderFile {
     return {
       $type: PbBootloaderFile.$type,
+      indexFileHead: isSet(object.indexFileHead) ? PbFilePointer.fromJSON(object.indexFileHead) : undefined,
       fileSize: isSet(object.fileSize) ? Number(object.fileSize) : 0,
       chunkSize: isSet(object.chunkSize) ? Number(object.chunkSize) : 0,
       fileName: isSet(object.fileName) ? String(object.fileName) : "",
       aesKey: isSet(object.aesKey) ? bytesFromBase64(object.aesKey) : new Uint8Array(),
       aesIv: isSet(object.aesIv) ? bytesFromBase64(object.aesIv) : new Uint8Array(),
-      indexFileHead: isSet(object.indexFileHead) ? PbFilePointer.fromJSON(object.indexFileHead) : undefined,
+      checksum: isSet(object.checksum) ? bytesFromBase64(object.checksum) : new Uint8Array(),
     };
   },
 
   toJSON(message: PbBootloaderFile): unknown {
     const obj: any = {};
+    message.indexFileHead !== undefined &&
+      (obj.indexFileHead = message.indexFileHead ? PbFilePointer.toJSON(message.indexFileHead) : undefined);
     message.fileSize !== undefined && (obj.fileSize = Math.round(message.fileSize));
     message.chunkSize !== undefined && (obj.chunkSize = Math.round(message.chunkSize));
     message.fileName !== undefined && (obj.fileName = message.fileName);
@@ -303,21 +314,22 @@ export const PbBootloaderFile = {
       (obj.aesKey = base64FromBytes(message.aesKey !== undefined ? message.aesKey : new Uint8Array()));
     message.aesIv !== undefined &&
       (obj.aesIv = base64FromBytes(message.aesIv !== undefined ? message.aesIv : new Uint8Array()));
-    message.indexFileHead !== undefined &&
-      (obj.indexFileHead = message.indexFileHead ? PbFilePointer.toJSON(message.indexFileHead) : undefined);
+    message.checksum !== undefined &&
+      (obj.checksum = base64FromBytes(message.checksum !== undefined ? message.checksum : new Uint8Array()));
     return obj;
   },
 
   fromPartial<I extends Exact<DeepPartial<PbBootloaderFile>, I>>(object: I): PbBootloaderFile {
     const message = createBasePbBootloaderFile();
+    message.indexFileHead = (object.indexFileHead !== undefined && object.indexFileHead !== null)
+      ? PbFilePointer.fromPartial(object.indexFileHead)
+      : undefined;
     message.fileSize = object.fileSize ?? 0;
     message.chunkSize = object.chunkSize ?? 0;
     message.fileName = object.fileName ?? "";
     message.aesKey = object.aesKey ?? new Uint8Array();
     message.aesIv = object.aesIv ?? new Uint8Array();
-    message.indexFileHead = (object.indexFileHead !== undefined && object.indexFileHead !== null)
-      ? PbFilePointer.fromPartial(object.indexFileHead)
-      : undefined;
+    message.checksum = object.checksum ?? new Uint8Array();
     return message;
   },
 };

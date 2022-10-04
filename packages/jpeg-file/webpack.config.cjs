@@ -14,6 +14,7 @@ const config = {
   },
   plugins: [
     copyFileFromNodeModulesPugin("nanojpeg-wasm", __dirname, "*.wasm"),
+    copyFileFromNodeModulesPugin("@saschazar/wasm-mozjpeg", __dirname, "*.wasm"),
     copyFileFromNodeModulesPugin("@zckevin/tinypool-cjs", __dirname, "worker.js"),
     copyFileFromNodeModulesPugin("@zckevin/tinypool-cjs", __dirname, "chunk-*.js"),
   ],

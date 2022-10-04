@@ -1,4 +1,4 @@
-import { NodeH2Fetch, defaultNodeH2Client, FetchConfig, defaultFetchConfig } from "../../src/sinks/h2fetch"
+import { NodeH2Fetch, defaultNodeH2Client, FetchConfig, defaultFetchConfig } from "../../src/h2fetch"
 import { AbortSignal, AbortController } from "fetch-h2";
 import { Subject, of, delay, takeUntil } from "rxjs";
 import http2 from "node:http2"

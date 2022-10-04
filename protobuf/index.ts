@@ -9,7 +9,8 @@ import { UsedBits } from "../src/bits-manipulation";
 export * from "./gen/protobuf/v1/jpeg_file";
 export * as pbTypeRegistry from "./gen/typeRegistry";
 
-const CHECKSUM_BYTE_LENGTH = 4;
+const CHECKSUM_LENGTH = 4;
+const CHECKSUM_HASH_METHOD = "sha256";
 const DESC_ENCODING = "base64";
 
 export interface BootloaderDescription {
@@ -21,10 +22,9 @@ export interface BootloaderDescription {
 }
 
 function hashPbMessage<T extends MessageType>(ctor: T, msg: UnknownMessage): Uint8Array {
-  const md5sum = crypto.createHash("md5");
   const buf = ctor.encode(msg).finish();
-  md5sum.update(buf);
-  return md5sum.digest().slice(0, CHECKSUM_BYTE_LENGTH);
+  const hash = crypto.createHash(CHECKSUM_HASH_METHOD).update(buf);
+  return hash.digest().slice(0, CHECKSUM_LENGTH);
 }
 
 function encodeIDMsg(id: string) {

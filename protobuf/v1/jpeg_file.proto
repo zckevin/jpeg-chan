@@ -16,12 +16,14 @@ message PbIndexFile {
 }
 
 message PbBootloaderFile {
-    required uint32 file_size = 1;
-    required uint32 chunk_size = 2;
-    required string file_name = 3;
-    required bytes aes_key = 4;
-    required bytes aes_iv = 5;
-    required PbFilePointer index_file_head = 6;
+    required PbFilePointer index_file_head = 1;
+    required uint32 file_size = 2;
+    required uint32 chunk_size = 3;
+    required string file_name = 4;
+    required bytes aes_key = 5;
+    required bytes aes_iv = 6;
+    // sha256 of the whole payload
+    required bytes checksum = 7;
 }
 
 message PbBootloaderDescription {
@@ -44,6 +46,7 @@ message PbBootloaderShortDescription {
 }
 
 message PbMsgWithChecksum {
+    // first N bytes of sha256 of short_msg or long_msg
     required bytes checksum = 1;
     required PbBootloaderDescription long_msg = 2;
     required PbBootloaderShortDescription short_msg = 3;

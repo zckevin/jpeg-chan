@@ -10,7 +10,7 @@ function padBuffer(buf: Buffer, minUploadSize: number) {
     return buf;
   }
   const result = Buffer.concat([
-    buf, crypto.randomBytes(this.MIN_UPLOAD_BUFFER_SIZE - buf.length)
+    buf, crypto.randomBytes(minUploadSize - buf.length)
   ]);
   return result;
 }

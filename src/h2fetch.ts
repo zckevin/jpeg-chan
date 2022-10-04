@@ -1,6 +1,9 @@
-import { assert } from "../assert";
+import { assert } from "./assert";
 import { context, AbortSignal } from "fetch-h2";
 import { defer, from, retry, timer } from 'rxjs';
+import debug from 'debug';
+
+const log = debug('jpeg:h2fetch');
 
 export class FetchConfig {
   constructor(
@@ -39,6 +42,7 @@ class NodeH2Client {
 
   async doFetch(url: string, signal: AbortSignal, config: FetchConfig): Promise<ArrayBuffer> {
     this.onDoFetch?.(url, config);
+    log(url, config);
     const resp = await this.ctx.fetch(url, {
       signal: signal,
       method: "GET",
@@ -47,7 +51,7 @@ class NodeH2Client {
 
     assert(resp.httpVersion === 2, "NodeH2Client fatal: site does not support HTTP/2");
     if (!resp.ok) {
-      if (resp.status % 100 === 4) {
+      if (Math.floor(resp.status / 100) === 4) {
         throw new Error(`NodeH2Client fatal: Fetch failed with status code: ${resp.status}`);
       } else {
         throw new Error(`NodeH2Client: Fetch failed with status code: ${resp.status}`);

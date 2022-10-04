@@ -125,18 +125,20 @@ class BootloaderFile extends BaseFile {
     fileName: string,
     aesKey: Uint8Array,
     aesIv: Uint8Array,
+    checksum: Uint8Array,
     indexFileHead: PbFilePointer,
     uploadConfig: SinkUploadConfig,
     blPassword: Uint8Array,
   ) {
     const blFile: PbBootloaderFile = {
       $type: PbBootloaderFile.$type,
+      indexFileHead,
       fileSize,
       chunkSize,
       fileName,
       aesKey,
       aesIv,
-      indexFileHead,
+      checksum,
     };
     const bootloaderFilePtr = await this.upload(blFile, uploadConfig);
     this.log("Gen from: ", bootloaderFilePtr);
@@ -178,6 +180,7 @@ export class UploadFile {
   public lastChunkSize: number;
   public aesKey: Buffer = crypto.randomBytes(16);
   public aesIv: Buffer = crypto.randomBytes(12);
+  public checksum: Uint8Array;
   public blPassword: Uint8Array = crypto.randomBytes(8);
   public uploadConcurrency = 10;
   public downloadConcurrency = 50;
@@ -205,6 +208,7 @@ export class UploadFile {
 
     this.n_chunks = Math.ceil(fileSize / chunkSize);
     this.lastChunkSize = fileSize % chunkSize;
+    this.checksum = crypto.createHash("sha256").update(this.fs.readFileSync(filePath)).digest();
 
     this.blUploadConfig = new SinkUploadConfig(
       null, // usedBits
@@ -244,7 +248,7 @@ export class UploadFile {
         }
         const file = new RawDataFile();
         const result = await file.uploadBuffer(chunk, this.dataUploadConfig);
-        this.log(`Finish upload task ${i}/${this.n_chunks}, size: ${chunk.byteLength}`);
+        this.log(`Finish upload task ${i+1}/${this.n_chunks}, size: ${chunk.byteLength}`);
         return result;
       }
       tasks.push(fn);
@@ -265,6 +269,7 @@ export class UploadFile {
       this.fileName,
       this.aesKey,
       this.aesIv,
+      this.checksum,
       indexFileHead,
       this.blUploadConfig,
       this.blPassword,
@@ -317,12 +322,15 @@ export class DownloadFile {
 
   async SaveToFile(outputFilePath: string) {
     const buf = await this.Readall();
-    const hash = crypto.createHash("md5");
-    hash.update(buf);
-    console.log("SaveToFile", outputFilePath, hash.digest("hex"));
     if (!outputFilePath) {
       outputFilePath = path.join(os.tmpdir(), this.bl.blFile.fileName);
     }
+    const hash = crypto.createHash("sha256").update(buf).digest();
+    if (!hash.equals(this.bl.blFile.checksum)) {
+      throw new Error("checksum mismatch");
+    }
+    this.log("SHA256 Checksum checked:", hash.toString("hex"));
+    console.log("SaveToFile", outputFilePath);
     fs.writeFileSync(outputFilePath, buf);
   }
 }

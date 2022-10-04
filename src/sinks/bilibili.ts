@@ -6,7 +6,7 @@ import { BasicSink } from "./base";
 import { SinkType } from "../common-types";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { NodeH2Fetch } from "./h2fetch";
+import { NodeH2Fetch } from "../h2fetch";
 import { range, sample } from "lodash";
 import * as dotenv from "dotenv";
 import FormData from "form-data";
@@ -57,7 +57,7 @@ async function upload(ab: ArrayBuffer): Promise<string> {
         if (msg === '请先登录') {
           console.log('token过期了，请及时更新命令行中的token');
         }
-        reject(new Error("Bilibili: upload failed"));
+        reject(new Error(`Bilibili upload failed: ${str}`));
       });
     });
     form.pipe(req);
@@ -87,10 +87,11 @@ export class BilibiliSink extends BasicSink {
   }
 
   async DoNodeDownload(url: string, config: SinkDownloadConfig) {
-    const randomCDNUrl = url.replace(
-      "i0", `i${sample(range(0, 4))}`
-    );
-    return NodeH2Fetch(randomCDNUrl, config.signal);
+    // const randomCDNUrl = url.replace(
+    //   "i0", `i${sample(range(0, 4))}`
+    // );
+    // return NodeH2Fetch(randomCDNUrl, config.signal);
+    return NodeH2Fetch(url, config.signal);
   }
 
   ExpandIDToUrl(id: string) {
