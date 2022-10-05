@@ -6,7 +6,7 @@ import { BasicSink } from "./base";
 import { SinkType } from "../common-types";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { NodeH2Fetch } from "../h2fetch";
+import { NodeFetch } from "../fetch"
 import { range, sample } from "lodash";
 import * as dotenv from "dotenv";
 import FormData from "form-data";
@@ -73,7 +73,7 @@ export class BilibiliSink extends BasicSink {
       /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/,
       SinkType.bilibili
     );
-    this.supportsHTTP2 = true;
+    this.supportsHTTP2 = false;
   }
 
   async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig) {
@@ -87,11 +87,10 @@ export class BilibiliSink extends BasicSink {
   }
 
   async DoNodeDownload(url: string, config: SinkDownloadConfig) {
-    // const randomCDNUrl = url.replace(
-    //   "i0", `i${sample(range(0, 4))}`
-    // );
-    // return NodeH2Fetch(randomCDNUrl, config.signal);
-    return NodeH2Fetch(url, config.signal);
+    const randomCDNUrl = url.replace(
+      "i0", `i${sample(range(0, 4))}`
+    );
+    return NodeFetch(randomCDNUrl, config.signal);
   }
 
   ExpandIDToUrl(id: string) {

@@ -1,7 +1,7 @@
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
 import { EncoderType, DecoderType, SinkType } from './common-types';
-import { AbortSignal } from "fetch-h2";
+import { AbortSignal } from "abort-controller";
 
 export class CipherConfig {
   constructor(

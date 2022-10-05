@@ -1,6 +1,6 @@
 import { workerPool } from './workers';
 import { randomString } from './utils';
-import { AbortController } from "fetch-h2";
+import { AbortController } from "abort-controller";
 import * as Rx from 'rxjs'
 import _ from "lodash";
 import debug from 'debug';

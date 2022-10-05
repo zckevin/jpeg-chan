@@ -79,8 +79,3 @@ test("zcsb", () => {
   console.log(Buffer.from(PbStringId.encode(stringMsg).finish()).toString("base64"));
 });
 */
-
-test("zcsb", () => {
-  const s = `CTfe/G5EjAKJAoYChSk22MuoYla77Uha3Z7q3YbE7+JhABEAQYpwEiAzEtNRIIAjMr/n4/m6c=`;
-  ParseDescString(s);
-});
