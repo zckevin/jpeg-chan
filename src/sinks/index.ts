@@ -55,9 +55,6 @@ class SinkDelegate {
     log("upload multiple with config", usedConfig);
 
     const ob = source$.pipe(
-      // tap((index) => {
-      //   log("==== download", index);
-      // }),
       task.createUnlimitedTasklet(async (index: number) => {
         const sink = (config.sinkType !== SinkType.unknown) ?
           this.getSink(config.sinkType) :
@@ -83,6 +80,7 @@ class SinkDelegate {
         }
         return {
           index: params.index,
+          encodedLength: params.encoded.byteLength,
           filePtr,
         }
       }),
@@ -90,7 +88,10 @@ class SinkDelegate {
     );
     const result = await firstValueFrom(ob);
     assert(result.length === totalLength, "Upload result length mismatch");
-    return result.sort((a, b) => a.index - b.index).map((r) => r.filePtr);
+    return {
+      filePtrs: result.sort((a, b) => a.index - b.index).map((r) => r.filePtr),
+      totalUploadSize: result.reduce((acc, r) => acc + r.encodedLength, 0),
+    };
   }
 
   async DownloadSingleFile(chunk: PbFilePointer, config: SinkDownloadConfig) {
@@ -104,9 +105,6 @@ class SinkDelegate {
     log("download multiple with config", usedConfig);
 
     const ob = source$.pipe(
-      // tap((index) => {
-      //   log("==== download", index);
-      // }),
       task.createLimitedTasklet(async (index: number) => {
         const chunk = chunks[index];
         const sink = this.getSink(chunk.url)

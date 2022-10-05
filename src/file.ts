@@ -6,12 +6,13 @@ import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescS
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { EncoderType, DecoderType, SinkType } from './common-types';
 import { NewCipherConfigFromPassword } from "./encryption"
+import { GetPercentageString } from "./utils";
 import path from 'path';
 import fs from "fs";
 import os from "os";
 import crypto from 'crypto';
 import debug from 'debug';
-import _ from "lodash";
+import _, { flip } from "lodash";
 
 const debugLogger = debug('jpeg:file');
 
@@ -21,7 +22,8 @@ class BaseFile {
   constructor() { }
 
   async uploadBuffer(buf: Buffer, uploadConfig: SinkUploadConfig) {
-    const filePtrs = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig);
+    const { filePtrs } = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig);
+    assert(filePtrs.length === 1);
     return filePtrs[0];
   }
 
@@ -245,7 +247,7 @@ export class UploadFile {
       this.checksum.update(chunk);
       return chunk;
     }
-    const uploadResults = await sinkDelegate.UploadMultiple(
+    const { filePtrs, totalUploadSize } = await sinkDelegate.UploadMultiple(
       readChunk,
       this.n_chunks,
       this.dataUploadConfig
@@ -253,7 +255,7 @@ export class UploadFile {
 
     // step 2. create/upload index file(s)
     const indexFile = new IndexFile();
-    const indexFileHead = await indexFile.GenIndexFile(uploadResults, this.dataUploadConfig);
+    const indexFileHead = await indexFile.GenIndexFile(filePtrs, this.dataUploadConfig);
 
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()
@@ -269,7 +271,8 @@ export class UploadFile {
       this.blUploadConfig,
       this.blPassword,
     );
-    this.log("Upload finish with descStr:", descStr);
+    this.log(`Upload finish, fileSize/uploadSize:${this.fileSize}/${totalUploadSize}`,
+      GetPercentageString(this.fileSize, totalUploadSize));
     return descStr;
   }
 }

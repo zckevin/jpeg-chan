@@ -77,3 +77,7 @@ export async function WrapFunctionWithTimePerf(fnName: string, fn: Function, log
   logFn(`${fnName} done, took ${end - start} ms`);
   return result;
 }
+
+export function GetPercentageString(n: number, total: number) {
+  return `${(n / total * 100).toFixed(2)}%`;
+}
