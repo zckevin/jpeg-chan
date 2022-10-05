@@ -3,11 +3,10 @@ import { DecodeBuffer } from '../jpeg-decoder';
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
 import { UsedBits } from '../bits-manipulation';
 import { EncryptEncodeParams, DecodeDecryptParams, WorkerParams, WorkerCmd } from "./params"
-import { randomString, WrapFunctionWithTimePerf } from '../utils';
+import { WrapFunctionWithTimePerf } from '../utils';
 import debug from 'debug';
 
-const workerID = randomString();
-const log = debug(`jpeg:worker:${workerID}`);
+const log = debug(`jpeg:worker`);
 
 async function DecodeDecrypt(params: DecodeDecryptParams) {
   const { ab, read_n, usedBits, decoderType, cipherConfig } = params;

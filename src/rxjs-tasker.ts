@@ -1,4 +1,5 @@
 import { workerPool } from './workers';
+import { randomString } from './utils';
 import { AbortController } from "fetch-h2";
 import * as Rx from 'rxjs'
 import _ from "lodash";
@@ -7,7 +8,7 @@ import debug from 'debug';
 const logger = debug('jpeg:rxtask');
 
 export class RxTask {
-  private log = logger.extend('download');
+  private log = logger.extend(randomString());
   private pool = workerPool;
   private abortCtr = new AbortController();
   private nextTaskID = 0;
@@ -47,7 +48,7 @@ export class RxTask {
       this.source$.complete();
       return;
     }
-    // this.log("notify source", this.currentIndex);
+    this.log("notifySource", this.currentIndex);
     this.source$.next(this.currentIndex++);
   }
 
@@ -73,10 +74,12 @@ export class RxTask {
   public createLimitedTasklet<In, Out>(fn: (arg: In) => Promise<Out>) {
     this.hasLimitedTasklet = true;
     const wrapper = async (arg: In) => {
-      // this.log("start tasklet", arg);
       try {
         const taskID = this.addRunning();
+        const log = this.log.extend(`task_${taskID}`);
+        log("start limited task");
         const result = await fn(arg);
+        log("finish limited task");
         this.removeRunning(taskID);
         return result;
       } catch (err) {
@@ -88,7 +91,19 @@ export class RxTask {
   }
 
   public createUnlimitedTasklet<In, Out>(fn: (_: In) => Promise<Out>) {
-    return Rx.mergeMap((arg: In) => Rx.from(fn(arg)));
+    const wrapper = async (arg: In) => {
+      try {
+        const log = this.log.extend(`task_${randomString()}`);
+        log("start unlimited task");
+        const result = await fn(arg);
+        log("finish unlimited task");
+        return result;
+      } catch (err) {
+        await this.onError(err);
+        throw err;
+      }
+    }
+    return Rx.mergeMap((arg: In) => Rx.from(wrapper(arg)));
   }
 
   public async collect<T>(ob: Rx.Observable<T>) {

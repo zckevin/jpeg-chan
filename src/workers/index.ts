@@ -4,8 +4,14 @@ import { DecoderType, EncoderType } from "../common-types";
 import fs from "node:fs"
 import path from 'node:path';
 import Tinypool from '@zckevin/tinypool-cjs'
+import tty from "node:tty";
 import debug from 'debug';
 
+// enable colors for debug
+// https://github.com/debug-js/debug/issues/739
+if (tty.isatty(process.stderr.fd)) {
+  process.env.DEBUG_COLORS = 'true';
+}
 const log = debug(`jpeg:worker:pool`);
 
 function resolveFile(filePath: string, fileName: string) {

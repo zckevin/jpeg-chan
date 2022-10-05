@@ -78,8 +78,12 @@ program
 program
   .command('download')
   .argument('<desc>', 'desc string', String)
+  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
   .action(async (desc, options) => {
-    const f = await DownloadFile.Create(desc, 1);
+    const f = await DownloadFile.Create(
+      desc,
+      parseInt(options.concurrency),
+    );
     await f.SaveToFile();
   });
 

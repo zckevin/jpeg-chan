@@ -42,7 +42,7 @@ class NodeH2Client {
 
   async doFetch(url: string, signal: AbortSignal, config: FetchConfig): Promise<ArrayBuffer> {
     this.onDoFetch?.(url, config);
-    log(url, config);
+    log("fetch start:", url, config);
     const resp = await this.ctx.fetch(url, {
       signal: signal,
       method: "GET",
@@ -57,7 +57,9 @@ class NodeH2Client {
         throw new Error(`NodeH2Client: Fetch failed with status code: ${resp.status}`);
       }
     }
-    return await resp.arrayBuffer();
+    const result = await resp.arrayBuffer();
+    log("fetch end:", url);
+    return result;
   }
 
   enableSelfSignedCert() {
@@ -88,6 +90,7 @@ export async function NodeH2Fetch(url: string, signal: AbortSignal = null, confi
           if (count > config.retry_n) {
             throw err;
           }
+          log("fetch retry:", count, err.message);
           return timer(config.getRetryDelay());
         },
       })

@@ -109,7 +109,6 @@ class SinkDelegate {
       // }),
       task.createLimitedTasklet(async (index: number) => {
         const chunk = chunks[index];
-        log("==== download", index, chunks.length, chunk);
         const sink = this.getSink(chunk.url)
         const ab = await sink.DownloadRawData(chunk.url, config);
         return {
