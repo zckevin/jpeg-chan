@@ -1,12 +1,10 @@
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
-import { Tasker } from "./tasker";
 import { sinkDelegate } from "./sinks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescString, BootloaderDescription } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { EncoderType, DecoderType, SinkType } from './common-types';
-import { Task } from './tasker';
 import { NewCipherConfigFromPassword } from "./encryption"
 import path from 'path';
 import fs from "fs";
@@ -23,14 +21,8 @@ class BaseFile {
   constructor() { }
 
   async uploadBuffer(buf: Buffer, uploadConfig: SinkUploadConfig) {
-    const { url, usedBits } = await sinkDelegate.Upload(buf, uploadConfig);
-    const filePtr: PbFilePointer = {
-      $type: PbFilePointer.$type,
-      size: buf.byteLength,
-      url,
-      usedBits: usedBits.toString(),
-    }
-    return filePtr;
+    const filePtrs = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig);
+    return filePtrs[0];
   }
 
   async upload<T extends UnknownMessage>(msg: T, uploadConfig: SinkUploadConfig) {
@@ -218,6 +210,7 @@ export class UploadFile {
       "", // maskPhotoFilePath
       EncoderType.wasmEncoder,
       sinkType, // sinkType
+      null,
     );
     this.dataUploadConfig = new SinkUploadConfig(
       null, // usedBits
@@ -227,11 +220,13 @@ export class UploadFile {
       "", // maskPhotoFilePath
       EncoderType.wasmEncoder,
       sinkType, // sinkType
+      null,
     );
   }
 
   async GenerateDescription(useShortDesc = false) {
     // step 1. upload file data chunks, get file chunk ptr array
+    /*
     const tasks: Task<PbFilePointer>[] = [];
     for (let i = 0; i < this.n_chunks; i++) {
       const fn = async () => {
@@ -255,10 +250,30 @@ export class UploadFile {
     }
     const uploadTasker = new Tasker<PbFilePointer>(tasks, this.dataUploadConfig.concurrency);
     await uploadTasker.done;
+    */
+    const readChunk = (i: number) => {
+      let chunk = Buffer.alloc(this.chunkSize);
+      const bytesRead = this.fs.readSync(
+        this.fd,
+        chunk,
+        0, // offset
+        this.chunkSize, //length
+        this.chunkSize * i, // position
+      );
+      if (bytesRead < this.chunkSize) {
+        chunk = chunk.slice(0, bytesRead);
+      }
+      return chunk;
+    }
+    const uploadResults = await sinkDelegate.UploadMultiple(
+      readChunk,
+      this.n_chunks,
+      this.dataUploadConfig
+    );
 
     // step 2. create/upload index file(s)
     const indexFile = new IndexFile();
-    const indexFileHead = await indexFile.GenIndexFile(uploadTasker.results, this.dataUploadConfig);
+    const indexFileHead = await indexFile.GenIndexFile(uploadResults, this.dataUploadConfig);
 
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()

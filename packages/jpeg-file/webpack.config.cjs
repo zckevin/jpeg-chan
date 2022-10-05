@@ -5,7 +5,7 @@ const config = {
   target: "node",
   entry: {
     "index": path.resolve(__dirname, "index.ts"),
-    "decode-decrypt-worker": path.resolve(__dirname, "../../src/workers/worker.ts"),
+    "jpeg-worker": path.resolve(__dirname, "../../src/workers/worker.ts"),
   },
   output: {
     path: path.resolve(__dirname, "dist"),

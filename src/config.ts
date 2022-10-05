@@ -18,8 +18,25 @@ class ConfigBase {
     public usedBits: UsedBits | null,
     public cipherConfig: CipherConfig,
     public concurrency: number,
+    public signal: AbortSignal,
   ) {
     assert(this.concurrency > 0, `Concurrency should be integer above 0 instead of ${this.concurrency}`);
+  }
+
+  cloneWithSignal(signal: AbortSignal) {
+    const cloned = this.clone() as (typeof this);
+    cloned.signal = signal;
+    return cloned;
+  }
+
+  cloneWithUsedBits(usedBits: UsedBits) {
+    const cloned = this.clone() as (typeof this);
+    cloned.usedBits = usedBits;
+    return cloned;
+  }
+
+  clone(): any {
+    throw new Error("Not implemented");
   }
 }
 
@@ -32,8 +49,22 @@ export class SinkUploadConfig extends ConfigBase {
     public maskPhotoFilePath: string,
     public encoderType: EncoderType,
     public sinkType: SinkType,
+    signal: AbortSignal,
   ) {
-    super(usedBits, cipherConfig, concurrency);
+    super(usedBits, cipherConfig, concurrency, signal);
+  }
+
+  clone() {
+    return new SinkUploadConfig(
+      this.usedBits,
+      this.cipherConfig,
+      this.concurrency,
+      this.validate,
+      this.maskPhotoFilePath,
+      this.encoderType,
+      this.sinkType,
+      this.signal,
+    );
   }
 
   toDownloadConfig(): SinkDownloadConfig {
@@ -45,18 +76,6 @@ export class SinkUploadConfig extends ConfigBase {
       null,
     );
   }
-
-  cloneWithUsedBits(usedBits: UsedBits) {
-    return new SinkUploadConfig(
-      usedBits,
-      this.cipherConfig,
-      this.concurrency,
-      this.validate,
-      this.maskPhotoFilePath,
-      this.encoderType,
-      this.sinkType,
-    )
-  }
 }
 
 export class SinkDownloadConfig extends ConfigBase {
@@ -65,16 +84,12 @@ export class SinkDownloadConfig extends ConfigBase {
     cipherConfig: CipherConfig,
     concurrency: number,
     public decoderType: DecoderType,
-    public signal: AbortSignal,
+    signal: AbortSignal,
   ) {
-    super(usedBits, cipherConfig, concurrency);
+    super(usedBits, cipherConfig, concurrency, signal);
   }
 
-  cloneWithUsedBits(usedBits: UsedBits) {
-    return new SinkDownloadConfig(usedBits, this.cipherConfig, this.concurrency, this.decoderType, this.signal);
-  }
-
-  cloneWithSignal(signal: AbortSignal) {
-    return new SinkDownloadConfig(this.usedBits, this.cipherConfig, this.concurrency, this.decoderType, signal);
+  clone() {
+    return new SinkDownloadConfig(this.usedBits, this.cipherConfig, this.concurrency, this.decoderType, this.signal);
   }
 }

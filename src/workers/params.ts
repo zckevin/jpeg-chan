@@ -1,5 +1,5 @@
 import { UsedBits } from '../bits-manipulation';
-import { DecoderType } from '../common-types';
+import { EncoderType, DecoderType } from '../common-types';
 import { CipherConfig } from '../config';
 
 export interface DecodeDecryptParams {
@@ -8,5 +8,24 @@ export interface DecodeDecryptParams {
   usedBits: UsedBits,
   decoderType: DecoderType,
   cipherConfig: CipherConfig,
-  dryRun: boolean,
+  // dryRun: boolean,
+}
+
+export interface EncryptEncodeParams {
+  ab: ArrayBuffer,
+  minUploadBufferSize: number,
+  encoderType: EncoderType,
+  usedBits: UsedBits,
+  cipherConfig: CipherConfig,
+  maskPhotoFilePath: string,
+}
+
+export enum WorkerCmd {
+  DecodeDecrypt = 1,
+  EncryptEncode,
+}
+
+export interface WorkerParams {
+  cmd: WorkerCmd,
+  params: DecodeDecryptParams | EncryptEncodeParams,
 }

@@ -6,7 +6,7 @@ import { isNode } from "browser-or-node";
 import { EncryptBuffer, DecryptBuffer } from "../encryption"
 import { EncodeBuffer } from '../jpeg-encoder';
 import { DecodeBuffer } from '../jpeg-decoder';
-import { SinkType, DecoderType } from '../common-types';
+import { SinkType, DecoderType, EncoderType } from '../common-types';
 
 export class BasicSink {
   protected supportsHTTP2 = false;
@@ -18,12 +18,14 @@ export class BasicSink {
     public type: SinkType,
   ) { }
 
+  // TODO: remove
   async EncryptEncodeUpload(original: Buffer, config: SinkUploadConfig) {
     const encypted = EncryptBuffer(original, config.cipherConfig, this.MIN_UPLOAD_BUFFER_SIZE);
     const encoded = await EncodeBuffer(
       encypted,
       config.usedBits || this.DEFAULT_USED_BITS,
-      config,
+      config.encoderType || EncoderType.wasmEncoder,
+      config.maskPhotoFilePath,
     );
     const url = await this.DoUpload(encoded as ArrayBuffer, config);
     if (config.validate) {
@@ -85,7 +87,7 @@ export class BasicSink {
     return results![1];
   }
 
-  protected async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig): Promise<string> {
+  public async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig): Promise<string> {
     throw new Error("Not implemented");
   }
 

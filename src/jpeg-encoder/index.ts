@@ -172,20 +172,10 @@ function getEncoder(usedBits: UsedBits, encoderType: EncoderType) {
   return enc;
 }
 
-export async function EncodeBuffer(ab: ArrayBuffer, usedBits: UsedBits, config: SinkUploadConfig) {
-  const enc = getEncoder(
-    config.usedBits,
-    config.encoderType || EncoderType.jpegjsEncoder,
-  );
-  if (config.maskPhotoFilePath) {
-    enc.setMaskPhotoFilePath(config.maskPhotoFilePath);
+export async function EncodeBuffer(ab: ArrayBuffer, usedBits: UsedBits, encoderType: EncoderType, maskPhotoFilePath: string) {
+  const enc = getEncoder(usedBits, encoderType);
+  if (maskPhotoFilePath) {
+    enc.setMaskPhotoFilePath(maskPhotoFilePath);
   }
-  const startTime = new Date().getTime();
-  const result = await enc.Write(ab);
-  log(
-    "EncodeBuffer done: ab length/duration_ms",
-    ab.byteLength,
-    new Date().getTime() - startTime,
-  );
-  return result;
+  return await enc.Write(ab);
 }

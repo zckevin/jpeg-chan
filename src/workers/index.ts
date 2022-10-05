@@ -1,7 +1,6 @@
-import { SinkDownloadConfig } from "../config";
-import { UsedBits } from '../bits-manipulation';
-import { DecodeDecryptParams } from "./params"
-import { DecoderType } from "../common-types";
+import { SinkDownloadConfig, SinkUploadConfig } from "../config";
+import { EncryptEncodeParams, DecodeDecryptParams, WorkerParams, WorkerCmd } from "./params"
+import { DecoderType, EncoderType } from "../common-types";
 import fs from "node:fs"
 import path from 'node:path';
 import Tinypool from '@zckevin/tinypool-cjs'
@@ -17,7 +16,7 @@ function resolveFile(filePath: string, fileName: string) {
     path.resolve(__dirname, filePath, fileName),
   ];
   for (const filePath of filePaths) {
-    log("resolve decode-decrypt-worker.js from: ", filePath);
+    log("resolve jpeg-worker.js from: ", filePath);
     if (fs.existsSync(filePath)) {
       log("found at:", filePath);
       return filePath;
@@ -29,28 +28,45 @@ function resolveFile(filePath: string, fileName: string) {
 export class WorkerPool {
   private poolIdleTimeout = 10_000;
   private pool = new Tinypool({
-    filename: resolveFile("./dist", "decode-decrypt-worker.js"),
+    filename: resolveFile("./dist", "jpeg-worker.js"),
     idleTimeout: this.poolIdleTimeout,
   })
 
   async DecodeDecrypt(
     ab: ArrayBuffer,
     read_n: number,
-    usedBits: UsedBits,
     config: SinkDownloadConfig,
-    dryRun: boolean = false,
   ): Promise<Buffer> {
     const params: DecodeDecryptParams = {
       // wasmDecoder uses memeory from wasm which is not transferable
       ab: ab.slice(0),
       decoderType: config.decoderType || DecoderType.wasmDecoder,
       cipherConfig: config.cipherConfig,
-      read_n, usedBits, dryRun,
+      usedBits: config.usedBits,
+      read_n,
     }
-    return await this.pool.run(params);
+    return await this.pool.run({ cmd: WorkerCmd.DecodeDecrypt, params } as WorkerParams);
+  }
+
+  async EncryptEncode(
+    ab: ArrayBuffer,
+    minUploadBufferSize: number,
+    config: SinkUploadConfig,
+  ) {
+    const params: EncryptEncodeParams = {
+      ab,
+      minUploadBufferSize,
+      encoderType: config.encoderType || EncoderType.wasmEncoder,
+      usedBits: config.usedBits,
+      cipherConfig: config.cipherConfig,
+      maskPhotoFilePath: config.maskPhotoFilePath,
+    }
+    return await this.pool.run({ cmd: WorkerCmd.EncryptEncode, params } as WorkerParams);
   }
 
   async destroy() {
     await this.pool.destroy();
   }
 }
+
+export const workerPool = new WorkerPool();

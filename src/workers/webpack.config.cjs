@@ -6,11 +6,12 @@ const config = {
   entry: path.resolve(__dirname, "worker.ts"),
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "decode-decrypt-worker.js",
+    filename: "jpeg-worker.js",
     libraryTarget: 'commonjs2',
   },
   plugins: [
     copyFileFromNodeModulesPugin("nanojpeg-wasm", __dirname, "*.wasm"),
+    copyFileFromNodeModulesPugin("@saschazar/wasm-mozjpeg", __dirname, "*.wasm"),
   ],
 };
 
