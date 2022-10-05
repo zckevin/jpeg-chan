@@ -41,6 +41,8 @@ program
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
   .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
+  .option('-u, --usedBits <usedBist>', 'usedBist', String)
   .option('--no-validate', 'do not do validation')
   .action(async (size, chunkSize, options) => {
     const sinkType = parseSinkType(options.sinkType);
@@ -53,7 +55,9 @@ program
       parseInt(options.concurrency),
       options.validate !== false,
       memfs,
-      sinkType
+      sinkType,
+      options.maskPhotoFilePath,
+      options.usedBits,
     );
     console.log(await f.GenerateDescription());
   });
@@ -64,6 +68,7 @@ program
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
   .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
   .option('--no-validate', 'do not do validation')
   .action(async (filePath, chunkSize, options) => {
     const sinkType = parseSinkType(options.sinkType);
@@ -73,7 +78,8 @@ program
       parseInt(options.concurrency),
       options.validate !== false,
       fs,
-      sinkType
+      sinkType,
+      options.maskPhotoFilePath,
     );
     console.log(await f.GenerateDescription());
   });

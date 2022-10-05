@@ -2,9 +2,8 @@ import { assert } from "../assert";
 import { EncoderType } from "../common-types";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { serialize, UsedBits, keepMostSignificantNBits } from "../bits-manipulation";
-import { SinkUploadConfig } from "../config";
-import jpegjs from "../jpeg-js/index.js";
 import debug from 'debug';
+import Jimp from "jimp";
 
 const log = debug('jpeg:encoder');
 
@@ -37,9 +36,8 @@ async function importEncoderByEnv(typ: EncoderType) {
 export class JpegEncoder extends JpegChannel {
   private encoderType: EncoderType;
   private n_channels: number = 1;
-  private cachedMaskPhotoComponents = new Map();
+  private cachedMaskPhotoComponents = new Map<string, Jimp>();
   private maskPhotoFilePath: string;
-  private sharpMod: any;
 
   constructor(usedBits: UsedBits, encoderType = EncoderType.jpegjsEncoder) {
     super(usedBits);
@@ -107,29 +105,19 @@ export class JpegEncoder extends JpegChannel {
     if (this.cachedMaskPhotoComponents.has(key)) {
       return this.cachedMaskPhotoComponents.get(key);
     }
-    if (!this.sharpMod) {
-      this.sharpMod = await import("sharp");
-    }
-    // @ts-ignore
-    const maskPhotoBuf = await this.sharpMod.default(maskPhotoFilePath).resize(width, width)
-      .jpeg({ mozjpeg: true })
-      .toBuffer();
-    // .toFile('/tmp/hehe.mask.jpg', (err, info) => { console.log(err, info) });
 
-    // @ts-ignore
-    const { components } = jpegjs.getImageComponents(maskPhotoBuf.buffer);
-    // mask photo's height & width should be larger than outputWidth
-    assert(components[0].lines.length >= width && components[0].lines[0].length >= width);
+    const image = await Jimp.read(maskPhotoFilePath);
+    image.resize(width, Jimp.AUTO);
 
-    this.cachedMaskPhotoComponents.set(key, components);
-    return components;
+    this.cachedMaskPhotoComponents.set(key, image);
+    return image;
   }
 
   async caculateMaskPhoto(maskPhotoFilePath: string, width: number) {
     if (!maskPhotoFilePath) {
       return;
     }
-    const components = await this.getCachedMaskPhotoComponents(maskPhotoFilePath, width);
+    const cachedImage = await this.getCachedMaskPhotoComponents(maskPhotoFilePath, width);
 
     let i = 0, j = 0;
     const maskFn = (outputWidth: number) => {
@@ -137,7 +125,8 @@ export class JpegEncoder extends JpegChannel {
         i += 1;
         j = 0;
       }
-      return components[0].lines[i][j++];
+      // weird order...
+      return Jimp.intToRGBA(cachedImage.getPixelColor(j++, i)).r;
     };
     return maskFn;
   }

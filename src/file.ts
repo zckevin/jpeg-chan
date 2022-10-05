@@ -188,6 +188,8 @@ export class UploadFile {
     public validate: boolean,
     public fs: any = realfs /* support memfs inject */,
     public sinkType: SinkType = SinkType.unknown,
+    maskPhotoFilePath: string = "",
+    usedBitsString: string = "",
   ) {
     assert(chunkSize > 0);
 
@@ -204,29 +206,30 @@ export class UploadFile {
     this.lastChunkSize = fileSize % chunkSize;
     this.checksum = crypto.createHash("sha256");
 
+    const usedBits = usedBitsString ? UsedBits.fromString(usedBitsString) : null;
     this.blUploadConfig = new SinkUploadConfig(
-      null, // usedBits
+      usedBits, // usedBits
       NewCipherConfigFromPassword(this.blPassword),
       concurrency,
       validate,
-      "", // maskPhotoFilePath
+      maskPhotoFilePath, // maskPhotoFilePath
       EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
     );
     this.dataUploadConfig = new SinkUploadConfig(
-      null, // usedBits
+      usedBits, // usedBits
       new CipherConfig("aes-128-gcm", this.aesKey, this.aesIv),
       concurrency,
       validate,
-      "", // maskPhotoFilePath
+      maskPhotoFilePath, // maskPhotoFilePath
       EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
     );
     this.log(
-      "Upload start with filePath/chunkSize/concurrency/validate/sinkType:",
-      filePath, chunkSize, concurrency, validate, SinkType[sinkType],
+      "Upload start with filePath/chunkSize/concurrency/validate/sinkType/maskPhoto:",
+      filePath, chunkSize, concurrency, validate, SinkType[sinkType], maskPhotoFilePath,
     )
   }
 

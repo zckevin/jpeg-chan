@@ -9,6 +9,7 @@
     "dist"
   ],
   "dependencies": {
+    "@jimp/plugin-resize": "^0.16.2",
     "@saschazar/wasm-image-loader": "^4.0.0",
     "@saschazar/wasm-mozjpeg": "^3.0.0",
     "@zckevin/tinypool-cjs": "^0.3.0",
@@ -19,6 +20,7 @@
     "fetch-h2": "^3.0.2",
     "form-data": "^3.0.1",
     "fs-extra": "^10.1.0",
+    "jimp": "^0.16.2",
     "lodash": "^4.17.21",
     "memfs": "^3.4.7",
     "nanojpeg-wasm": "^0.0.7",
@@ -26,7 +28,6 @@
     "protobufjs": "^7.1.2",
     "read-chunk": "^4.0.2",
     "rxjs": "^7.5.7",
-    "sharp": "^0.30.7",
     "ts-proto": "^1.126.1"
   },
   "devDependencies": {
