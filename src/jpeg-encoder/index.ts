@@ -3,7 +3,6 @@ import { EncoderType } from "../common-types";
 import { JpegChannel } from "../channels/jpeg-channel";
 import { serialize, UsedBits, keepMostSignificantNBits } from "../bits-manipulation";
 import debug from 'debug';
-import Jimp from "jimp";
 
 const log = debug('jpeg:encoder');
 
@@ -36,8 +35,9 @@ async function importEncoderByEnv(typ: EncoderType) {
 export class JpegEncoder extends JpegChannel {
   private encoderType: EncoderType;
   private n_channels: number = 1;
-  private cachedMaskPhotoComponents = new Map<string, Jimp>();
+  private cachedMaskPhotoComponents = new Map<string, any>();
   private maskPhotoFilePath: string;
+  private jimpMod: any;
 
   constructor(usedBits: UsedBits, encoderType = EncoderType.jpegjsEncoder) {
     super(usedBits);
@@ -101,6 +101,10 @@ export class JpegEncoder extends JpegChannel {
   }
 
   async getCachedMaskPhotoComponents(maskPhotoFilePath: string, width: number) {
+    if (!this.jimpMod) {
+      this.jimpMod = (await import("jimp")).default;
+    }
+    const Jimp = this.jimpMod;
     const key = `${maskPhotoFilePath}-${width}`;
     if (this.cachedMaskPhotoComponents.has(key)) {
       return this.cachedMaskPhotoComponents.get(key);
@@ -126,7 +130,7 @@ export class JpegEncoder extends JpegChannel {
         j = 0;
       }
       // weird order...
-      return Jimp.intToRGBA(cachedImage.getPixelColor(j++, i)).r;
+      return this.jimpMod.intToRGBA(cachedImage.getPixelColor(j++, i)).r;
     };
     return maskFn;
   }

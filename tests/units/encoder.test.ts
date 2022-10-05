@@ -50,11 +50,11 @@ test("photo mask demands usedBits's from to be greater than 1", async () => {
       enc.setMaskPhotoFilePath(MASK_PHOTO_FILE_PATH);
     });
   }).rejects.toThrow(/.*should be greater than 1.*/);
-})
+}, 60_000);
 
 test("encoder maskPhotoFilePath should work", async () => {
   const usedBits = new UsedBits(2, 4);
   await EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, usedBits, 1024, (enc) => {
     enc.setMaskPhotoFilePath(MASK_PHOTO_FILE_PATH);
   });
-});
+}, 60_000);

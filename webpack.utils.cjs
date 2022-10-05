@@ -24,6 +24,11 @@ const fallbackConfig = {
   process: false,
   util: false,
   tty: false,
+  zlib: false,
+  http: false,
+  https: false,
+  querystring: false,
+  url: false,
   crypto: require.resolve("crypto-browserify"),
   stream: require.resolve("stream-browserify"),
 };
