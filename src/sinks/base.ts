@@ -18,7 +18,7 @@ export class BasicSink {
     public type: SinkType,
   ) { }
 
-  // TODO: remove
+  // TODO: testonly, maybe remove?
   async EncryptEncodeUpload(original: Buffer, config: SinkUploadConfig) {
     const encypted = EncryptBuffer(original, config.cipherConfig, this.MIN_UPLOAD_BUFFER_SIZE);
     const encoded = await EncodeBuffer(

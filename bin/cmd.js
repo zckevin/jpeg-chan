@@ -26,6 +26,9 @@ function parseSinkType(sinkType) {
     case "wb": {
       return SinkType.weibo;
     }
+    case "mem": {
+      return SinkType.memfile;
+    }
   }
   throw new Error(`Unkown sink type: ${options.sinkType}`)
 }

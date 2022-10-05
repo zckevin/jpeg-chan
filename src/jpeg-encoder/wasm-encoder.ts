@@ -1,6 +1,8 @@
 import { EncoderImageData } from "./index"
 import wasm_mozjpeg, { MozJPEGModule } from '@saschazar/wasm-mozjpeg';
 
+// let mozjpegModule = null;
+
 const options = {
   quality: 100,
   baseline: true,
@@ -33,15 +35,21 @@ async function loadWasm(): Promise<MozJPEGModule> {
 }
 
 export async function encodeImageData(targetImageData: EncoderImageData, imageQuality: number) {
-  const m = await loadWasm();
+  // TODO: @saschazar/wasm-mozjpeg would throw memory access bounds error if 
+  // we don't instantiate a new module for each encode.
+  //
+  // if (mozjpegModule === null) {
+  //   mozjpegModule = await loadWasm();
+  // }
+  const mozjpegModule = await loadWasm();
   const channels = 3;
   options.chroma_quality = imageQuality;
-  return m.encode(
+  return mozjpegModule.encode(
     targetImageData.data,
-    targetImageData.width, 
+    targetImageData.width,
     targetImageData.height,
     channels,
     options
   );
-  // m.free(); // clean up memory after encoding is done
+  // mozjpegModule.free();
 }

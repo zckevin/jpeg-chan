@@ -208,7 +208,7 @@ export class UploadFile {
       concurrency,
       validate,
       "", // maskPhotoFilePath
-      EncoderType.wasmEncoder,
+      EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
     );
@@ -218,7 +218,7 @@ export class UploadFile {
       concurrency,
       validate,
       "", // maskPhotoFilePath
-      EncoderType.wasmEncoder,
+      EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
     );

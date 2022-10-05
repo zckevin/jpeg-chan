@@ -3,6 +3,9 @@ import { SinkType } from "../common-types";
 import { UsedBits } from "../bits-manipulation";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { randomString } from "../utils";
+import debug from 'debug';
+
+const log = debug('jpeg:http:memfile');
 
 export class MemFileSink extends BasicSink {
   private store = new Map<string, Buffer>();
@@ -20,6 +23,7 @@ export class MemFileSink extends BasicSink {
     const id = randomString();
     const url = this.ExpandIDToUrl(id);
     this.store.set(url, Buffer.from(ab));
+    log("Upload result:", url);
     return url;
   }
 

@@ -51,6 +51,9 @@ class NodeH2Client extends BaseClient {
     this.onDoFetch?.(url, config);
     this.log("fetch start:", url, config);
     const resp = await this.ctx.fetch(url, {
+      // TODO: AbortSignal in fetch-h2 is not compatible with Node AbortSignal
+      // disable for now
+      //
       // signal: signal,
       method: "GET",
       timeout: config.timeout_ms,
@@ -58,6 +61,7 @@ class NodeH2Client extends BaseClient {
 
     assert(resp.httpVersion === 2, "NodeH2Client fatal: site does not support HTTP/2");
     if (!resp.ok) {
+      // TODO: if we should remove this check
       // if (Math.floor(resp.status / 100) === 4) {
       //   throw new Error(`NodeH2Client fatal: Fetch failed with status code: ${resp.status}`);
       // } else {
