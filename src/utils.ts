@@ -1,4 +1,6 @@
 import { assert } from "./assert";
+import { readRequest } from "./chunks";
+import _ from "lodash";
 
 export function getRandomInt(max: number) {
   return Math.floor(Math.random() * Math.floor(max));
@@ -80,4 +82,44 @@ export async function WrapFunctionWithTimePerf(fnName: string, fn: Function, log
 
 export function GetPercentageString(n: number, total: number) {
   return `${(n / total * 100).toFixed(2)}%`;
+}
+
+export function GeneratePermutation(inputArr: number[]) {
+  let result = [];
+  const permute = (arr, m = []) => {
+    if (arr.length === 0) {
+      result.push(m)
+    } else {
+      for (let i = 0; i < arr.length; i++) {
+        let curr = arr.slice();
+        let next = curr.splice(i, 1);
+        permute(curr.slice(), m.concat(next))
+      }
+    }
+  }
+  permute(inputArr)
+  return result;
+}
+
+function crossJoin(arr1: Array<readRequest[]>, arr2: Array<readRequest[]>) {
+  let seed: Array<readRequest[]> = [];
+  return arr1.reduce(function (acc, x) {
+    return acc.concat(arr2.map(function (y) {
+      return x.concat(y);
+    }));
+  }, seed);
+}
+
+export function GeneratePermutaionRanges(from: number, to: number) {
+  let results: Array<readRequest[]> = [[]];
+  if (from > to) return results;
+  for (let i = from; i < to; i++) {
+    results = results.concat(
+      crossJoin(
+        [[], [{ start: from, end: i }]],
+        GeneratePermutaionRanges(i + 1, to)
+      )
+    );
+  }
+  return _.uniqBy(results, JSON.stringify);
 }

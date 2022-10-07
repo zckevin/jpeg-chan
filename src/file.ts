@@ -1,6 +1,7 @@
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
 import { sinkDelegate } from "./sinks";
+import { ChunksHelper, ChunksCache, cachedChunk, readRequest } from "./chunks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescString, BootloaderDescription } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
@@ -12,7 +13,8 @@ import fs from "fs";
 import os from "os";
 import crypto from 'crypto';
 import debug from 'debug';
-import _, { flip } from "lodash";
+import _, { toArray } from "lodash";
+import * as rx from "rxjs"
 
 const debugLogger = debug('jpeg:file');
 
@@ -73,9 +75,23 @@ class IndexFile extends BaseFile {
     return indexFilePtr;
   }
 
-  async DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
+  DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
+    if (chunkIndexes.length === 0) {
+      return rx.of({
+        decoded: Buffer.alloc(0),
+        index: 0,
+      });
+    }
     const targetChunks = _.pullAt(this.indexFile.chunks, chunkIndexes);
-    return await sinkDelegate.DownloadMultipleFiles(targetChunks, downloadConfig);
+    return sinkDelegate.DownloadMultiple(targetChunks, downloadConfig).pipe(
+      // from index number in download sequences to index number in the file chunks
+      rx.map(chunk => {
+        return {
+          decoded: chunk.decoded,
+          index: chunkIndexes[chunk.index],
+        };
+      })
+    );
   }
 }
 
@@ -83,7 +99,9 @@ class BootloaderFile extends BaseFile {
   private log = debugLogger.extend('bootloader');
 
   public blFile: PbBootloaderFile;
+  public indexFile: IndexFile;
   public dataDownloadConfig: SinkDownloadConfig;
+  public helper: ChunksHelper;
 
   constructor() {
     super();
@@ -100,6 +118,7 @@ class BootloaderFile extends BaseFile {
       null, // abort signal
     );
     file.blFile = blFile;
+    file.indexFile = await IndexFile.CreateForDownload(blFile.indexFileHead!, dataDownloadConfig);
     file.dataDownloadConfig = dataDownloadConfig;
     file.log("create ptr/file/dataDownloadConfig", blFilePointer, blFile, dataDownloadConfig);
     return file;
@@ -150,15 +169,26 @@ class BootloaderFile extends BaseFile {
   }
 
   async Read(n: number, pos: number = 0) {
-    const indexFile = await IndexFile.CreateForDownload(this.blFile.indexFileHead!, this.dataDownloadConfig);
-    const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize);
-    const targetChunkIndexes = helper.caclulateReadChunkIndexes(pos, n + pos);
-    this.log("read_n/pos/targetChunkIndexes", n, pos, targetChunkIndexes)
-    const chunks = await indexFile.DownloadChunksWithWorkerPool(
-      targetChunkIndexes,
+    const request = {
+      start: pos,
+      end: pos + n,
+    }
+    const source$ = this.Readv([request]);
+    return await rx.firstValueFrom(source$);
+  }
+
+  Readv(requests: readRequest[]) {
+    const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize, requests);
+    this.log("requests/targetReadChunkIndexes", requests, helper.targetReadChunkIndexes);
+    return this.indexFile.DownloadChunksWithWorkerPool(
+      helper.targetReadChunkIndexes,
       this.dataDownloadConfig,
+    ).pipe(
+      rx.map((chunk: cachedChunk) => {
+        return rx.of(...helper.onNewChunks([chunk]));
+      }),
+      rx.mergeAll(),
     );
-    return helper.concatAndTrimBuffer(chunks, targetChunkIndexes, pos, n + pos);
   }
 }
 
@@ -318,6 +348,10 @@ export class DownloadFile {
     return await this.bl.Read(n, pos);
   }
 
+  Readv(requests: readRequest[]) {
+    return this.bl.Readv(requests);
+  }
+
   async Readall() {
     return this.Read(this.bl.blFile.fileSize);
   }
@@ -337,39 +371,3 @@ export class DownloadFile {
   }
 }
 
-export class ChunksHelper {
-  constructor(
-    public fileSize: number,
-    public chunkSize: number
-  ) {
-    assert(chunkSize > 0 && chunkSize <= fileSize, "invalid params");
-  }
-
-  // range is [start, end) 
-  caclulateReadChunkIndexes(start: number = 0, end: number = -1) {
-    if (end === -1) {
-      end = this.fileSize;
-    }
-    assert(
-      start >= 0 &&
-      start <= end &&
-      end <= this.fileSize,
-      "invalid params",
-    );
-    const startIndex = Math.floor(start / this.chunkSize);
-    // end_chunk is exclusive
-    const endIndex = Math.ceil(end / this.chunkSize);
-    return _.range(startIndex, endIndex);
-  }
-
-  concatAndTrimBuffer(bufs: Buffer[], chunkIndexes: number[], start: number, end: number): Buffer {
-    if (bufs.length === 0) {
-      return Buffer.alloc(0);
-    }
-    assert(bufs.length === chunkIndexes.length, "invalid params");
-    const buf = Buffer.concat(bufs);
-    const startOffset = start - chunkIndexes[0] * this.chunkSize;
-    const endOffset = startOffset + (end - start);
-    return buf.slice(startOffset, endOffset);
-  }
-}

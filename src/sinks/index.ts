@@ -6,19 +6,15 @@ import { SinkUploadConfig, SinkDownloadConfig } from "../config";
 import { PbFilePointer } from "../../protobuf";
 import { BasicSink } from "./base";
 import { SinkType } from "../common-types";
-import { find, sample } from "lodash";
+import _, { find, sample } from "lodash";
 import { assert } from "../assert";
-import { RxTask } from "../rxjs-tasker"
-import { BufferToArrayBuffer } from "../utils"
-import { toArray, firstValueFrom } from "rxjs";
+import { RxTask } from "../rxjs-tasker";
+import { BufferToArrayBuffer } from "../utils";
+import { ChunksCache } from "../chunks";
+import { toArray, firstValueFrom, filter, map, of, mergeAll } from "rxjs";
 import debug from 'debug';
 
 const log = debug('jpeg:sinks');
-
-interface WorkerTask {
-  ab: ArrayBuffer;
-  index: number;
-}
 
 class SinkDelegate {
   private sinks = [
@@ -99,12 +95,13 @@ class SinkDelegate {
     return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
   }
 
-  async DownloadMultipleFiles(chunks: PbFilePointer[], config: SinkDownloadConfig) {
+  DownloadMultiple(chunks: PbFilePointer[], config: SinkDownloadConfig) {
     const { task, source$, pool, abortCtr } = RxTask.Create(chunks.length, config.concurrency);
     const usedConfig = config.cloneWithSignal(abortCtr.signal);
     log("download multiple with config", usedConfig);
 
-    const ob = source$.pipe(
+    const cache = new ChunksCache();
+    return source$.pipe(
       task.createLimitedTasklet(async (index: number) => {
         const chunk = chunks[index];
         const sink = this.getSink(chunk.url)
@@ -122,11 +119,9 @@ class SinkDelegate {
           index: params.index,
         }
       }),
-      toArray(),
+      map((params) => of(...cache.onNewChunk(params))),
+      mergeAll(),
     );
-    const result = await task.collect(ob);
-    assert(result.length === chunks.length, "Download result length mismatch");
-    return result.sort((a, b) => a.index - b.index).map((r) => r.decoded);
   }
 
   GetTypeAndID(url: string) {

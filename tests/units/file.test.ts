@@ -1,57 +1,13 @@
 import { randomString } from "../../src/utils";
-import { UploadFile, DownloadFile, ChunksHelper } from "../../src/file";
+import { UploadFile, DownloadFile } from "../../src/file";
 import { fs as memfs } from 'memfs';
 import { SinkType } from "../../src/common-types";
+import { readRequest } from "../../src/chunks";
+import { GeneratePermutaionRanges } from "../../src/utils";
 import _ from "lodash"
+import * as rx from "rxjs";
 
-test("ChunksHelper caclulateReadChunkIndexes", async () => {
-  expect(new ChunksHelper(2, 2).caclulateReadChunkIndexes()).toEqual([0]);
-  expect(new ChunksHelper(2, 1).caclulateReadChunkIndexes()).toEqual([0, 1]);
-  expect(new ChunksHelper(2, 1).caclulateReadChunkIndexes(1, 2)).toEqual([1]);
-  expect(new ChunksHelper(2, 1).caclulateReadChunkIndexes(1, 1)).toEqual([]);
-
-  const errorCases = [
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [2, 1, -1],
-    [2, 3],
-    [2, 1, 2, 1],
-    [2, 1, 3],
-  ]
-  for (const c of errorCases) {
-    const [a, b] = c.slice(0, 2);
-    const suffix = c.slice(2);
-    expect(() => ChunksHelper.prototype.caclulateReadChunkIndexes.apply(new ChunksHelper(a, b), suffix)).toThrow(/invalid params/);
-  }
-}, 60_000);
-
-test("ChunksHelper concatAndTrimBuffer", async () => {
-  const fn = (fileSize: number, chunkSize: number) => {
-    const buf = Buffer.from(_.range(0, fileSize));
-    const chunks = _.range(0, Math.ceil(fileSize / chunkSize))
-      .map(i => buf.slice(i * chunkSize, (i + 1) * chunkSize));
-
-    const helper = new ChunksHelper(buf.length, chunkSize);
-    const myBufferSlice = (start: number, end: number) => {
-      const chunkIndexes = helper.caclulateReadChunkIndexes(start, end);
-      return helper.concatAndTrimBuffer(_.pullAt(_.clone(chunks), chunkIndexes), chunkIndexes, start, end);
-    };
-
-    for (let i = 0; i <= buf.length; i++) {
-      for (let j = i; j <= buf.length; j++) {
-        expect(myBufferSlice(i, j)).toEqual(buf.slice(i, j));
-      }
-    }
-  };
-  for (let i = 1; i <= 10; i++) {
-    for (let j = 1; j <= i; j++) {
-      fn(i, j);
-    }
-  }
-}, 60_000);
-
-test("Downloadfile Read with range", async () => {
+test("Downloadfile Readv", async () => {
   const concurrency = 1;
   const fn = async (fileSize: number, chunkSize: number) => {
     const buf = Buffer.from(_.range(0, fileSize));
@@ -67,22 +23,23 @@ test("Downloadfile Read with range", async () => {
     );
     const desc = await uf.GenerateDescription();
 
-    const downloadFile = await DownloadFile.Create(desc, concurrency);
-    const myBufferSlice = async (start: number, end: number) => {
-      return await downloadFile.Read(end - start, start);
-    }
-    for (let i = 0; i <= buf.length; i++) {
-      for (let j = i; j <= buf.length; j++) {
-        expect(await myBufferSlice(i, j)).toEqual(buf.slice(i, j));
-      }
-    }
+    const requests_cases: Array<readRequest[]> =
+      GeneratePermutaionRanges(0, fileSize).filter((arr) => arr.length > 0);
+    requests_cases.map(async (requests) => {
+      const downloadFile = await DownloadFile.Create(desc, concurrency);
+      const results = await rx.firstValueFrom(downloadFile.Readv(requests).pipe(rx.toArray()));
+      results.map((result, index) => {
+        const request = requests[index];
+        expect(result).toEqual(buf.slice(request.start, request.end));
+      })
+    })
   };
   // only one chunk
   await fn(1, 1);
   // fileSize % chunkSize == 0
-  await fn(10, 2);
+  await fn(4, 2);
   // fileSize % chunkSize != 0
-  await fn(10, 3);
+  await fn(5, 2);
 }, 60_000);
 
 test("Download with short desc", async () => {
@@ -103,8 +60,8 @@ test("Download with short desc", async () => {
 
   await expect(DownloadFile.Create(desc, concurrency)).rejects.toThrow(/no password found/);
 
-  const downloadFile = await DownloadFile.Create(desc, concurrency, uf.blPassword);
   const myBufferSlice = async (start: number, end: number) => {
+    const downloadFile = await DownloadFile.Create(desc, concurrency, uf.blPassword);
     return await downloadFile.Read(end - start, start);
   }
   expect(await myBufferSlice(1, 8)).toEqual(buf.slice(1, 8));
