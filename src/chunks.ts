@@ -1,5 +1,6 @@
 import { assert } from "./assert";
-import _, { times } from "lodash";
+import _ from "lodash";
+import * as rx from "rxjs";
 
 export interface cachedChunk {
   decoded: Buffer;
@@ -107,7 +108,7 @@ export class ChunksHelper {
       }
       bufs.push(chunk.decoded);
     }
-    return this.concatAndTrimBuffer(bufs, chunkIndexes, req.start, req.end);    
+    return this.concatAndTrimBuffer(bufs, chunkIndexes, req.start, req.end);
   }
 
   onNewChunks(chunks: cachedChunk[]) {
@@ -135,5 +136,47 @@ export class ChunksHelper {
     const startOffset = start - chunkIndexes[0] * this.chunkSize;
     const endOffset = startOffset + (end - start);
     return buf.slice(startOffset, endOffset);
+  }
+}
+
+export class BlockingQueue<T> {
+  private queue: Array<T> = [];
+  private notifier = new rx.Subject<boolean>();
+  private comleted = false;
+  private err: Error;
+
+  constructor(public source$: rx.Observable<T>) {
+    source$.subscribe({
+      next: (v) => {
+        this.queue.push(v);
+        this.notifier.next(true);
+      },
+      error: (err) => {
+        this.notifier.complete();
+        this.comleted = true;
+        this.err = err;
+      },
+      complete: () => {
+        this.notifier.complete();
+        this.comleted = true;
+      },
+    });
+  }
+
+  async blpop() {
+    while (this.queue.length <= 0) {
+      if (this.comleted) {
+        if (this.err) {
+          throw this.err;
+        }
+        return null;
+      }
+      await rx.lastValueFrom(this.notifier.pipe(
+        rx.first(),
+        rx.catchError(err => rx.of(true)),
+      ));
+    }
+    const v = this.queue.shift();
+    return v;
   }
 }

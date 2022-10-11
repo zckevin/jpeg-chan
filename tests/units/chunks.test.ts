@@ -1,4 +1,4 @@
-import { ChunksHelper, ChunksCache, readRequest } from "../../src/chunks";
+import { ChunksHelper, ChunksCache, readRequest, BlockingQueue } from "../../src/chunks";
 import { GeneratePermutation, GeneratePermutaionRanges } from "../../src/utils";
 import _ from "lodash";
 import * as rx from "rxjs";
@@ -113,3 +113,51 @@ test("ChunksCache should work", async () => {
     expect(results).toEqual(_.range(n));
   }
 });
+
+test("BlockingQueue run blpop one by one", async () => {
+  const source$ = rx.interval(100).pipe(
+    rx.take(3),
+    rx.map((i) => i)
+  );
+  const q = new BlockingQueue(source$);
+  for (let i = 0; i < 3; i++) {
+    const v = await q.blpop();
+    // slow consumer
+    await new Promise((r) => setTimeout(() => r(null), 500));
+    expect(v).toEqual(i);
+  }
+  expect(await q.blpop()).toEqual(null);
+})
+
+test("BlockingQueue run blpop concurrently", async () => {
+  const source$ = rx.interval(100).pipe(
+    rx.take(3),
+    rx.map((i) => i)
+  );
+  const q = new BlockingQueue(source$);
+  const promises = _.range(0, 3).map(() => {
+    return q.blpop();
+  });
+  expect(await Promise.all(promises)).toEqual([0, 1, 2]);
+  expect(await q.blpop()).toEqual(null);
+})
+
+test("zcsb BlockingQueue on error", async () => {
+  const source$ = rx.interval(100).pipe(
+    rx.take(3),
+    rx.mergeMap((i) => {
+      if (i === 1) {
+        return rx.throwError(() => new Error("error"));
+      }
+      return rx.of(i);
+    })
+  );
+  const q = new BlockingQueue(source$);
+
+  const v = await q.blpop();
+  await new Promise((r) => setTimeout(() => r(null), 500));
+  expect(v).toEqual(0);
+
+  expect(q.blpop()).rejects.toThrow(/error/);
+  expect(q.blpop()).rejects.toThrow(/error/);
+})

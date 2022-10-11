@@ -1,7 +1,7 @@
 import { assert } from "./assert";
 import { UsedBits } from "./bits-manipulation";
 import { sinkDelegate } from "./sinks";
-import { ChunksHelper, ChunksCache, cachedChunk, readRequest } from "./chunks";
+import { ChunksHelper, cachedChunk, readRequest, BlockingQueue } from "./chunks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
 import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescString, BootloaderDescription } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
@@ -178,6 +178,9 @@ class BootloaderFile extends BaseFile {
   }
 
   Readv(requests: readRequest[]) {
+    if (requests.length === 0) {
+      return rx.of(Buffer.alloc(0));
+    }
     const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize, requests);
     this.log("requests/targetReadChunkIndexes", requests, helper.targetReadChunkIndexes);
     return this.indexFile.DownloadChunksWithWorkerPool(
@@ -350,6 +353,11 @@ export class DownloadFile {
 
   Readv(requests: readRequest[]) {
     return this.bl.Readv(requests);
+  }
+
+  ReadvBlockingQueue(requests: readRequest[]) {
+    const source$ = this.bl.Readv(requests);
+    return new BlockingQueue(source$);
   }
 
   async Readall() {
