@@ -26,9 +26,6 @@ jobs:
         node-version: '16'
         cache: 'npm'
     
-    - name: clone jpegjs
-      run: git submodule sync --recursive
-
     - name: install dependencies
       run: npm ci
 

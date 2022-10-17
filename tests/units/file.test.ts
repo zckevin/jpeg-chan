@@ -40,7 +40,7 @@ test("Downloadfile Readv", async () => {
   await fn(4, 2);
   // fileSize % chunkSize != 0
   await fn(5, 2);
-}, 60_000);
+}, 120_000);
 
 test("Download with short desc", async () => {
   const fileSize = 10, chunkSize = 3;

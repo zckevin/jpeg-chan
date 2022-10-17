@@ -67,6 +67,7 @@
     "test:karma:headless": "karma start ./karma.config.cjs --headless",
     "dev": "webpack --watch --config ./webpack.dev.cjs",
     "build": "webpack --config ./webpack.prod.cjs",
+    "publish": "cd packages/jpeg-file && npm publish",
     "perf": "karma start ./karma.config.cjs --perf"
   }
 }

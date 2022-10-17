@@ -11,6 +11,10 @@
   },
   "devDependencies": {
   },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/zckevin"
+  },
+  "repository": "https://github.com/zckevin/npm-repos", 
   "scripts": {
   }
 }
