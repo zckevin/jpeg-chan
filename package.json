@@ -25,7 +25,7 @@
     "memfs": "^3.4.7",
     "nanojpeg-wasm": "^0.0.7",
     "node-fetch": "^2.6.7",
-    "protobufjs": "^7.1.2",
+    "protobufjs": "^7.2.4",
     "read-chunk": "^4.0.2",
     "rxjs": "^7.5.7",
     "ts-proto": "^1.126.1"
