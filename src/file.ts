@@ -3,7 +3,7 @@ import { UsedBits } from "./bits-manipulation";
 import { sinkDelegate } from "./sinks";
 import { ChunksHelper, cachedChunk, readRequest, BlockingQueue } from "./chunks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, ParseDescString, BootloaderDescription } from "../protobuf";
+import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, BootloaderDescription, ParseDescString } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { EncoderType, DecoderType, SinkType } from './common-types';
 import { NewCipherConfigFromPassword } from "./encryption"
@@ -35,7 +35,7 @@ class BaseFile {
   }
 
   async download<T extends UnknownMessage>(msgTyp: MessageType, ptr: PbFilePointer, downloadConfig: SinkDownloadConfig) {
-    const buf = await sinkDelegate.DownloadSingleFile(ptr, downloadConfig)
+    const buf = await sinkDelegate.DownloadSingleFile(ptr, downloadConfig);
     return msgTyp.decode(buf) as T;
   }
 }
@@ -132,7 +132,6 @@ class BootloaderFile extends BaseFile {
   // }
 
   async GenDescription(
-    useShortDesc: boolean,
     fileSize: number,
     chunkSize: number,
     fileName: string,
@@ -155,17 +154,7 @@ class BootloaderFile extends BaseFile {
     };
     this.log("Gen from: ", blFile);
     const bootloaderFilePtr = await this.upload(blFile, uploadConfig);
-
-    const { sinkType, id } = sinkDelegate.GetTypeAndID(bootloaderFilePtr.url);
-    const blDesc: BootloaderDescription = {
-      id,
-      sinkType,
-      size: bootloaderFilePtr.size,
-      usedBits: UsedBits.fromString(bootloaderFilePtr.usedBits),
-      password: blPassword,
-    }
-    this.log("Gen result: ", blDesc);
-    return GenDescString(blDesc, useShortDesc);
+    return GenDescString(bootloaderFilePtr, blPassword);
   }
 
   async Read(n: number, pos: number = 0) {
@@ -266,7 +255,7 @@ export class UploadFile {
     )
   }
 
-  async GenerateDescription(useShortDesc = false) {
+  async GenerateDescription() {
     // step 1. upload file data chunks, get file chunk ptr array
     const readChunk = (i: number) => {
       let chunk = Buffer.alloc(this.chunkSize);
@@ -296,7 +285,6 @@ export class UploadFile {
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()
     const descStr = await bootloaderFile.GenDescription(
-      useShortDesc,
       this.fileSize,
       this.chunkSize,
       this.fileName,
@@ -322,11 +310,12 @@ export class DownloadFile {
 
   constructor(descStr: string, concurrency: number, password: Uint8Array) {
     this.blDesc = ParseDescString(descStr);
-    assert(this.blDesc.password || password, "no password found in desc or input");
+    assert(this.blDesc.password.byteLength > 0 || password?.byteLength > 0,
+      "no password found in desc or input");
     this.log("Download start with desc: ", this.blDesc);
 
     this.blDownloadConfig = new SinkDownloadConfig(
-      this.blDesc.usedBits,
+      UsedBits.fromString(this.blDesc.fp.usedBits),
       NewCipherConfigFromPassword(this.blDesc.password || password),
       concurrency,
       DecoderType.wasmDecoder,
@@ -337,13 +326,7 @@ export class DownloadFile {
   static async Create(descStr: string, concurrency: number, password?: Uint8Array) {
     const f = new DownloadFile(descStr, concurrency, password);
     const { blDesc, blDownloadConfig } = f;
-    const blFileChunk: PbFilePointer = {
-      $type: PbFilePointer.$type,
-      size: blDesc.size,
-      url: sinkDelegate.ExpandIDToUrl(blDesc.sinkType, blDesc.id),
-      usedBits: blDesc.usedBits.toString(),
-    }
-    f.bl = await BootloaderFile.CreateForDownload(blFileChunk, blDownloadConfig);
+    f.bl = await BootloaderFile.CreateForDownload(blDesc.fp, blDownloadConfig);
     return f;
   }
 
@@ -378,4 +361,3 @@ export class DownloadFile {
     fs.writeFileSync(outputFilePath, buf);
   }
 }
-

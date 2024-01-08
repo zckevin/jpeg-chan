@@ -1,25 +1,21 @@
+import _ from "lodash";
 import crypto from "crypto";
-import { PbBootloaderDescription, PbBootloaderShortDescription, PbBootloaderShortDescription_ID, PbMsgWithChecksum } from "./gen/protobuf/v1/jpeg_file";
+import { PbFilePointer, PbResourceURL, PbResourceURL_ID, PbResourceURL_ShortURL } from "./gen/protobuf/v1/jpeg_file";
 import { MessageType, UnknownMessage } from "./gen/typeRegistry";
 import { assert } from "../src/assert";
-import _ from "lodash";
+import { sinkDelegate } from "../src/sinks";
 import { SinkType } from "../src/common-types";
-import { UsedBits } from "../src/bits-manipulation";
 
 export * from "./gen/protobuf/v1/jpeg_file";
 export * as pbTypeRegistry from "./gen/typeRegistry";
 
+const PROTOCOL_SCHEME = "jpegchan"
+const PROTOCOL_PASSWORD = "password"
+const PROTOCOL_PASSWORD_ENCODING = "hex"
+
 const CHECKSUM_LENGTH = 4;
 const CHECKSUM_HASH_METHOD = "sha256";
-const DESC_ENCODING = "base64";
-
-export interface BootloaderDescription {
-  id: string;
-  sinkType: SinkType;
-  size: number;
-  usedBits: UsedBits;
-  password?: Uint8Array;
-}
+const DESC_ENCODING = "base64url";
 
 function hashPbMessage<T extends MessageType>(ctor: T, msg: UnknownMessage): Uint8Array {
   const buf = ctor.encode(msg).finish();
@@ -27,59 +23,75 @@ function hashPbMessage<T extends MessageType>(ctor: T, msg: UnknownMessage): Uin
   return hash.digest().slice(0, CHECKSUM_LENGTH);
 }
 
-function encodeIDMsg(id: string) {
+export function DecodeResourceID(id: string) {
+  // try to store `id` string in hex format to save space if possible
   let buf = Buffer.from(id, "hex");
   let isHex = true;
   if (buf.toString("hex") !== id) {
     buf = Buffer.from(id);
     isHex = false;
   }
-  return PbBootloaderShortDescription_ID.fromPartial({
-    $type: PbBootloaderShortDescription_ID.$type,
+  return PbResourceURL_ID.fromPartial({
+    $type: PbResourceURL_ID.$type,
     id: buf,
     isHex,
   });
 }
 
-function createShortDescMsg(desc: BootloaderDescription) {
-  const ctor = PbBootloaderShortDescription;
-  const msg = ctor.fromPartial({
-    $type: ctor.$type,
-    id: encodeIDMsg(desc.id),
-    sinkType: desc.sinkType,
-    size: desc.size,
-    usedBits: Buffer.from(desc.usedBits.toString()),
-  });
-  return {
-    msg,
-    checksum: hashPbMessage(ctor, msg),
-  }
+export function EncodeResourceID(rid: PbResourceURL_ID) {
+  const { id, isHex } = rid;
+  return Buffer.from(id).toString(isHex ? "hex" : "ascii")
 }
 
-function createDescMsg(desc: BootloaderDescription) {
-  const ctor = PbBootloaderDescription;
-  const msg = ctor.fromPartial({
-    $type: ctor.$type,
-    desc: createShortDescMsg(desc).msg,
-    password: desc.password,
-  });
-  return {
-    msg,
-    checksum: hashPbMessage(ctor, msg),
-  }
-}
-
-export function GenDescString(desc: BootloaderDescription, useShortDesc = false) {
-  const { msg, checksum } = useShortDesc ? createShortDescMsg(desc) : createDescMsg(desc);
-  const checksumMsg: PbMsgWithChecksum = {
-    $type: PbMsgWithChecksum.$type,
-    longMsg: useShortDesc ? undefined : (msg as PbBootloaderDescription),
-    shortMsg: useShortDesc ? (msg as PbBootloaderShortDescription) : undefined,
-    checksum: checksum,
+export function CreateShortResourceID(idString: string, sinkType: SinkType) {
+  const shortUrl: PbResourceURL_ShortURL = {
+    $type: PbResourceURL_ShortURL.$type,
+    id: DecodeResourceID(idString),
+    sinkType: sinkType,
+    sinkTypeMinor: 0,
   };
-  return Buffer.from(PbMsgWithChecksum.encode(checksumMsg).finish()).toString(DESC_ENCODING);
+  const shortResource: PbResourceURL = {
+    $type: PbResourceURL.$type,
+    urlOneof: {
+      $case: "shortUrl",
+      shortUrl
+    }
+  };
+  return shortResource;
 }
 
+export function GenDescString(fp: PbFilePointer, password: Uint8Array) {
+  assert(fp.resources.length === 1);
+  
+  let resource: PbResourceURL;
+  switch (fp.resources[0].urlOneof.$case) {
+    case "url": {
+      const urlString = fp.resources[0].urlOneof.url;
+      const { sinkType, id } = sinkDelegate.GetTypeAndID(urlString);
+      resource = CreateShortResourceID(id, sinkType);
+      break;
+    }
+    case "shortUrl": {
+      resource = fp.resources[0];
+      break;
+    }
+    default: {
+      throw new Error("invalid fp for gen desc")
+    }
+  }
+  const shortFp: PbFilePointer = {
+    $type: PbFilePointer.$type,
+    size: fp.size,
+    usedBits: fp.usedBits,
+    checksum: fp.checksum,
+    resources: [resource],
+  };
+  const encoded = Buffer.from(PbFilePointer.encode(shortFp).finish()).toString(DESC_ENCODING);
+  const uri = new URL(`${PROTOCOL_SCHEME}://`);
+  uri.host = encoded;
+  uri.searchParams.set(PROTOCOL_PASSWORD, Buffer.from(password).toString(PROTOCOL_PASSWORD_ENCODING));
+  return uri.toString();
+}
 
 function parseAndVerifyChecksum<T extends MessageType>(ctor: T, buf: Uint8Array, expected: Uint8Array) {
   const msg = ctor.decode(buf);
@@ -91,43 +103,34 @@ function parseAndVerifyChecksum<T extends MessageType>(ctor: T, buf: Uint8Array,
   return msg;
 }
 
-function createBootloaderDescription(descMsg: PbBootloaderShortDescription): BootloaderDescription {
+interface descPasswordPair {
+  desc: string;
+  password: string;
+}
+
+function parseUri(uri: string): descPasswordPair {
+  const u = new URL(uri);
+  if (u.protocol !== PROTOCOL_SCHEME && u.protocol !== `${PROTOCOL_SCHEME}:`) {
+    throw new Error(`invalid uri: ${uri}`)
+  }
+  const desc = u.host;
+  const password = u.searchParams.get(PROTOCOL_PASSWORD)
   return {
-    id: Buffer.from(descMsg.id.id).toString(descMsg.id.isHex ? "hex" : "ascii"),
-    sinkType: descMsg.sinkType,
-    size: descMsg.size,
-    usedBits: UsedBits.fromString(Buffer.from(descMsg.usedBits).toString()),
+    desc, password
   };
 }
 
-export function ParseDescString(desc: string): BootloaderDescription {
-  const buf = Buffer.from(desc, DESC_ENCODING);
-  const checksumMsg = PbMsgWithChecksum.decode(buf);
-  assert(
-    !(checksumMsg.longMsg === undefined && checksumMsg.shortMsg === undefined),
-    "ParseDescHex error: invalid message"
-  );
+export interface BootloaderDescription {
+  fp: PbFilePointer;
+  password: Uint8Array;
+}
 
-  let ctor: MessageType;
-  let fromMsg: UnknownMessage;
-  if (checksumMsg.longMsg) {
-    ctor = PbBootloaderDescription;
-    fromMsg = checksumMsg.longMsg;
-  } else {
-    ctor = PbBootloaderShortDescription;
-    fromMsg = checksumMsg.shortMsg;
-  }
-  const msg = parseAndVerifyChecksum(ctor, ctor.encode(fromMsg).finish(), checksumMsg.checksum);
-  switch (msg.$type) {
-    case PbBootloaderDescription.$type: {
-      return {
-        ...createBootloaderDescription((msg as PbBootloaderDescription).desc),
-        password: (msg as PbBootloaderDescription).password,
-      };
-    }
-    case PbBootloaderShortDescription.$type:
-      return createBootloaderDescription(msg as PbBootloaderShortDescription);
-    default:
-      throw new Error(`ParseDescHex error: invalid type: ${msg.$type}`);
+export function ParseDescString(uri: string): BootloaderDescription {
+  const { desc, password } = parseUri(uri);
+  const buf = Buffer.from(desc, DESC_ENCODING);
+  const fp = PbFilePointer.decode(buf);
+  return {
+    fp,
+    password: Buffer.from(password, PROTOCOL_PASSWORD_ENCODING),
   }
 }

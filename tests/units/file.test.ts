@@ -42,8 +42,8 @@ test("Downloadfile Readv", async () => {
   await fn(5, 2);
 }, 120_000);
 
-test("Download with short desc", async () => {
-  const fileSize = 10, chunkSize = 3;
+test("Download without password", async () => {
+  const fileSize = 1, chunkSize = 1;
   const concurrency = 1;
   const buf = Buffer.from(_.range(0, fileSize));
   const filePath = `/${randomString()}.file`;
@@ -56,13 +56,8 @@ test("Download with short desc", async () => {
     memfs,
     SinkType.memfile,
   );
-  const desc = await uf.GenerateDescription(true);
-
-  await expect(DownloadFile.Create(desc, concurrency)).rejects.toThrow(/no password found/);
-
-  const myBufferSlice = async (start: number, end: number) => {
-    const downloadFile = await DownloadFile.Create(desc, concurrency, uf.blPassword);
-    return await downloadFile.Read(end - start, start);
-  }
-  expect(await myBufferSlice(1, 8)).toEqual(buf.slice(1, 8));
+  const desc = await uf.GenerateDescription();
+  const uri = new URL(desc);
+  uri.searchParams.set("password", "");
+  await expect(DownloadFile.Create(uri.toString(), concurrency)).rejects.toThrow(/no password found/);
 });

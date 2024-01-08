@@ -3,7 +3,7 @@ import { BilibiliSink } from "./bilibili";
 import { MemFileSink } from "./memfile";
 import { TmpFileSink } from "./tmpfile";
 import { SinkUploadConfig, SinkDownloadConfig } from "../config";
-import { PbFilePointer } from "../../protobuf";
+import { PbFilePointer, PbResourceURL, EncodeResourceID } from "../../protobuf";
 import { BasicSink } from "./base";
 import { SinkType } from "../common-types";
 import _, { find, sample } from "lodash";
@@ -13,6 +13,7 @@ import { BufferToArrayBuffer } from "../utils";
 import { ChunksCache } from "../chunks";
 import { toArray, firstValueFrom, filter, map, of, mergeAll } from "rxjs";
 import debug from 'debug';
+import crypto from 'crypto';
 
 const log = debug('jpeg:sinks');
 
@@ -55,24 +56,35 @@ class SinkDelegate {
         const sink = (config.sinkType !== SinkType.unknown) ?
           this.getSink(config.sinkType) :
           sample(this.sinks);
-        const ab = BufferToArrayBuffer(getBuf(index));
+        const buf = getBuf(index);
         const usedBits = usedConfig.usedBits || sink.DEFAULT_USED_BITS;
-        const encoded = await pool.EncryptEncode(ab, 200, usedConfig.cloneWithUsedBits(usedBits));
+        const encoded = await pool.EncryptEncode(BufferToArrayBuffer(buf), 200, usedConfig.cloneWithUsedBits(usedBits));
+        const hash = crypto.createHash("sha256");
+        hash.update(buf);
         return {
           sink: sink,
           encoded: encoded,
           index: index,
-          originalLength: ab.byteLength,
+          originalLength: buf.byteLength,
           usedBits: usedBits,
+          checksum: hash.digest()
         }
       }),
       task.createLimitedTasklet(async (params) => {
-        const url = await params.sink.DoUpload(params.encoded, config);
+        const urlString = await params.sink.DoUpload(params.encoded, config);
+        const resourceID: PbResourceURL = {
+          $type: PbResourceURL.$type,
+          urlOneof: {
+            $case: "url",
+            url: urlString,
+          }
+        }
         const filePtr: PbFilePointer = {
           $type: PbFilePointer.$type,
-          url,
-          usedBits: params.usedBits.toString(),
           size: params.originalLength,
+          usedBits: params.usedBits.toString(),
+          checksum: params.checksum,
+          resources: [resourceID],
         }
         return {
           index: params.index,
@@ -91,21 +103,24 @@ class SinkDelegate {
   }
 
   async DownloadSingleFile(chunk: PbFilePointer, config: SinkDownloadConfig) {
-    log("download with config", config);
-    return await this.getSink(chunk.url).DownloadDecodeDecrypt(chunk.url, chunk.size, config);
+    const cached = await firstValueFrom(this.DownloadMultiple([chunk], config));
+    return cached.decoded;
   }
 
   DownloadMultiple(chunks: PbFilePointer[], config: SinkDownloadConfig) {
     const { task, source$, pool, abortCtr } = RxTask.Create(chunks.length, config.concurrency);
     const usedConfig = config.cloneWithSignal(abortCtr.signal);
-    log("download multiple with config", usedConfig);
+    log("download with config", usedConfig);
 
     const cache = new ChunksCache();
     return source$.pipe(
       task.createLimitedTasklet(async (index: number) => {
         const chunk = chunks[index];
-        const sink = this.getSink(chunk.url)
-        const ab = await sink.DownloadRawData(chunk.url, config);
+        // only support one resource id now
+        assert(chunk.resources.length === 1);
+        const url = this.ResourceURLToString(chunk.resources[0]);
+        const sink = this.getSink(url)
+        const ab = await sink.DownloadRawData(url, config);
         return {
           ab,
           index: index,
@@ -114,8 +129,13 @@ class SinkDelegate {
       task.createUnlimitedTasklet(async (params: { ab: ArrayBuffer, index: number }) => {
         const chunk = chunks[params.index];
         const decoded = await pool.DecodeDecrypt(params.ab, chunk.size, usedConfig);
+        const hash = crypto.createHash("sha256");
+        hash.update(decoded);
+        if (!hash.digest().equals(chunk.checksum)) {
+          throw new Error("checksum mismatch")
+        }
         return {
-          decoded: decoded,
+          decoded: Buffer.from(decoded),
           index: params.index,
         }
       }),
@@ -134,6 +154,18 @@ class SinkDelegate {
 
   ExpandIDToUrl(type: number, id: string) {
     return this.getSink(type).ExpandIDToUrl(id);
+  }
+
+  ResourceURLToString(id: PbResourceURL): string {
+    switch (id.urlOneof.$case) {
+      case "url": {
+        return id.urlOneof.url;
+      }
+      case "shortUrl": {
+        const shortUrl = id.urlOneof.shortUrl;
+        return this.ExpandIDToUrl(shortUrl.sinkType, EncodeResourceID(shortUrl.id));
+      }
+    }
   }
 }
 

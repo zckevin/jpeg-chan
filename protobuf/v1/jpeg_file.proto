@@ -1,10 +1,34 @@
 syntax = "proto2";
 package protobuf.v1;
 
+message PbResourceURL {
+    message ID {
+        required bytes id = 1;
+        // if `id` is a valid hex string
+        required bool is_hex = 2;
+    }
+    message ShortURL {
+        // image identifier for download from different sinks
+        // e.g. https://i2.hdslb.com/bfs/archive/2e3b2831c37cfad73ea2885ce0110e08b159ed0f.jpg
+        // id is 2e3b2831c37cfad73ea2885ce0110e08b159ed0f
+        required ID id = 1;
+        required uint32 sink_type = 2;
+        // sub version of the corespondent sink type
+        required uint32 sink_type_minor = 3;
+    }
+
+    oneof url_oneof {
+        string url = 1;
+        ShortURL short_url = 2;
+    }
+}
+
 message PbFilePointer {
+    // chunk size
     required uint32 size = 1;
-    required string url = 2;
-    required string used_bits = 3;
+    required string used_bits = 2;
+    required bytes checksum = 3;
+    repeated PbResourceURL resources = 4;
 }
 
 // could be a linked list
@@ -20,34 +44,11 @@ message PbBootloaderFile {
     required uint32 file_size = 2;
     required uint32 chunk_size = 3;
     required string file_name = 4;
+
+    // key/iv pair for file chunks encryption
     required bytes aes_key = 5;
     required bytes aes_iv = 6;
-    // sha256 of the whole payload
+
+    // sha256 of the whole file
     required bytes checksum = 7;
-}
-
-message PbBootloaderDescription {
-    required PbBootloaderShortDescription desc = 1;
-    required bytes password = 2;
-}
-
-message PbBootloaderShortDescription {
-    message ID {
-        required bytes id = 1;
-        required bool is_hex = 2;
-    }
-    // image identifier for download from different sinks
-    // e.g. https://i2.hdslb.com/bfs/archive/2e3b2831c37cfad73ea2885ce0110e08b159ed0f.jpg
-    // id is 2e3b2831c37cfad73ea2885ce0110e08b159ed0f
-    required ID id = 1;
-    required uint32 sink_type = 2;
-    required uint32 size = 3;
-    required bytes used_bits = 4;
-}
-
-message PbMsgWithChecksum {
-    // first N bytes of sha256 of short_msg or long_msg
-    required bytes checksum = 1;
-    required PbBootloaderDescription long_msg = 2;
-    required PbBootloaderShortDescription short_msg = 3;
 }

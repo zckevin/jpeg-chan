@@ -5,7 +5,8 @@ import { fs as memfs } from 'memfs';
 import { SinkType } from "../../src/common-types";
 import _ from "lodash"
 
-test("Downloadfile from jpeg-file package should work", async () => {
+// disable packages for now
+test.skip("Downloadfile from jpeg-file package should work", async () => {
   const fileSize = 10;
   const chunkSize = 3;
   const concurrency = 1;

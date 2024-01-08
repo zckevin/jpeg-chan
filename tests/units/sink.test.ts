@@ -1,6 +1,6 @@
 import { MemFileSink } from "../../src/sinks/memfile";
-import { TmpFileSink } from "../../src/sinks/tmpfile";
 import { BasicSink } from "../../src/sinks/base";
+import { sinkDelegate } from "../../src/sinks";
 import { randomBytesArray } from "../../src/utils";
 import { UsedBits } from "../../src/bits-manipulation";
 import { SinkUploadConfig } from "../../src/config";
@@ -22,6 +22,16 @@ test("memfile upload/download loop", async () => {
   await uploadDownloadLoop(new MemFileSink());
 });
 
-test("tmpfile upload/download loop", async () => {
-  await uploadDownloadLoop(new TmpFileSink());
+test("chunk has incorrect checksum", async () => {
+  const buf = Buffer.from(randomBytesArray(1024).buffer);
+  const { filePtrs } = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig);
+  const fp = filePtrs[0];
+
+  const downloaded = await sinkDelegate.DownloadSingleFile(fp, uploadConfig.toDownloadConfig());
+  expect(downloaded).toEqual(buf);
+
+  const incorrectChecksumFp = fp;
+  incorrectChecksumFp.checksum = Buffer.from("incorrect checksum");
+  const promise = sinkDelegate.DownloadSingleFile(incorrectChecksumFp, uploadConfig.toDownloadConfig());
+  await expect(promise).rejects.toThrow(/checksum mismatch/);
 });

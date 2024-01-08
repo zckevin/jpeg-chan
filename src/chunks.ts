@@ -56,7 +56,7 @@ export class ChunksHelper {
     public chunkSize: number,
     requests: readRequest[] = [],
   ) {
-    assert(chunkSize > 0 && chunkSize <= fileSize, "invalid params");
+    assert(chunkSize > 0 && chunkSize <= fileSize, "invalid `chunkSize`");
     this.validateReadRequests(requests);
     const arr = requests.map((req) => {
       const chunkIndexes = this.caclulateReadChunkIndexes(req.start, req.end)
@@ -87,7 +87,7 @@ export class ChunksHelper {
       start >= 0 &&
       start <= end &&
       end <= this.fileSize,
-      "invalid params",
+      "invalid start/end",
     );
     const startIndex = Math.floor(start / this.chunkSize);
     // end_chunk is exclusive
@@ -131,7 +131,7 @@ export class ChunksHelper {
     if (bufs.length === 0) {
       return Buffer.alloc(0);
     }
-    assert(bufs.length === chunkIndexes.length, "invalid params");
+    assert(bufs.length === chunkIndexes.length, "invalid bufs length");
     const buf = Buffer.concat(bufs);
     const startOffset = start - chunkIndexes[0] * this.chunkSize;
     const endOffset = startOffset + (end - start);
