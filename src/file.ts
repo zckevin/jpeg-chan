@@ -3,7 +3,7 @@ import { UsedBits } from "./bits-manipulation";
 import { sinkDelegate } from "./sinks";
 import { ChunksHelper, cachedChunk, readRequest, BlockingQueue } from "./chunks";
 import { CipherConfig, SinkDownloadConfig, SinkUploadConfig } from './config';
-import { PbIndexFile, PbBootloaderFile, PbFilePointer, GenDescString, BootloaderDescription, ParseDescString } from "../protobuf";
+import { PbBootloaderFile, PbFilePointer, GenDescString, BootloaderDescription, ParseDescString } from "../protobuf";
 import { MessageType, messageTypeRegistry, UnknownMessage } from '../protobuf/gen/typeRegistry';
 import { EncoderType, DecoderType, SinkType } from './common-types';
 import { NewCipherConfigFromPassword } from "./encryption"
@@ -46,60 +46,10 @@ class RawDataFile extends BaseFile {
   }
 }
 
-class IndexFile extends BaseFile {
-  private log = debugLogger.extend('index');
-  public indexFile: PbIndexFile;
-
-  constructor() {
-    super();
-  }
-
-  static async CreateForDownload(indexFilePointer: PbFilePointer, downloadConfig: SinkDownloadConfig) {
-    const file = new IndexFile();
-    file.indexFile = await file.download<PbIndexFile>(PbIndexFile, indexFilePointer, downloadConfig);
-    file.log("create indexFilePointer/indexFile:", indexFilePointer, file.indexFile);
-    return file;
-  }
-
-  async GenIndexFile(chunks: PbFilePointer[], uploadConfig: SinkUploadConfig) {
-    const indexFile: PbIndexFile = {
-      $type: PbIndexFile.$type,
-      chunks: chunks,
-      // TODO: support split index file into multiple files
-      ended: true,
-      next: undefined,
-    }
-    this.log("Gen from:", indexFile);
-    const indexFilePtr = await this.upload(indexFile, uploadConfig, "indexFile");
-    this.log("Gen result: ", indexFilePtr);
-    return indexFilePtr;
-  }
-
-  DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
-    if (chunkIndexes.length === 0) {
-      return rx.of({
-        decoded: Buffer.alloc(0),
-        index: 0,
-      });
-    }
-    const targetChunks = _.pullAt(this.indexFile.chunks, chunkIndexes);
-    return sinkDelegate.DownloadMultiple(targetChunks, downloadConfig).pipe(
-      // from index number in download sequences to index number in the file chunks
-      rx.map(chunk => {
-        return {
-          decoded: chunk.decoded,
-          index: chunkIndexes[chunk.index],
-        };
-      })
-    );
-  }
-}
-
 class BootloaderFile extends BaseFile {
   private log = debugLogger.extend('bootloader');
 
   public blFile: PbBootloaderFile;
-  public indexFile: IndexFile;
   public dataDownloadConfig: SinkDownloadConfig;
   public helper: ChunksHelper;
 
@@ -111,14 +61,14 @@ class BootloaderFile extends BaseFile {
     const file = new BootloaderFile();
     const blFile = await file.download<PbBootloaderFile>(PbBootloaderFile, blFilePointer, downloadConfig);
     const dataDownloadConfig = new SinkDownloadConfig(
-      UsedBits.fromString(blFile.indexFileHead!.usedBits), // usedBits
+      // UsedBits.fromString(blFile.usedBits), // usedBits
+      downloadConfig.usedBits,
       new CipherConfig("aes-128-gcm", Buffer.from(blFile.aesKey), Buffer.from(blFile.aesIv)),
       downloadConfig.concurrency,
       DecoderType.wasmDecoder, // decoder
       null, // abort signal
     );
     file.blFile = blFile;
-    file.indexFile = await IndexFile.CreateForDownload(blFile.indexFileHead!, dataDownloadConfig);
     file.dataDownloadConfig = dataDownloadConfig;
     file.log("create ptr/file/dataDownloadConfig", blFilePointer, blFile, dataDownloadConfig);
     return file;
@@ -138,13 +88,13 @@ class BootloaderFile extends BaseFile {
     aesKey: Uint8Array,
     aesIv: Uint8Array,
     checksum: Uint8Array,
-    indexFileHead: PbFilePointer,
+    chunks: PbFilePointer[],
     uploadConfig: SinkUploadConfig,
     blPassword: Uint8Array,
   ) {
     const blFile: PbBootloaderFile = {
       $type: PbBootloaderFile.$type,
-      indexFileHead,
+      chunks,
       fileSize,
       chunkSize,
       fileName,
@@ -172,7 +122,7 @@ class BootloaderFile extends BaseFile {
     }
     const helper = new ChunksHelper(this.blFile.fileSize, this.blFile.chunkSize, requests);
     this.log("requests/targetReadChunkIndexes", requests, helper.targetReadChunkIndexes);
-    return this.indexFile.DownloadChunksWithWorkerPool(
+    return this.DownloadChunksWithWorkerPool(
       helper.targetReadChunkIndexes,
       this.dataDownloadConfig,
     ).pipe(
@@ -180,6 +130,25 @@ class BootloaderFile extends BaseFile {
         return rx.of(...helper.onNewChunks([chunk]));
       }),
       rx.mergeAll(),
+    );
+  }
+
+  DownloadChunksWithWorkerPool(chunkIndexes: number[], downloadConfig: SinkDownloadConfig) {
+    if (chunkIndexes.length === 0) {
+      return rx.of({
+        decoded: Buffer.alloc(0),
+        index: 0,
+      });
+    }
+    const targetChunks = _.pullAt(this.blFile.chunks, chunkIndexes);
+    return sinkDelegate.DownloadMultiple(targetChunks, downloadConfig).pipe(
+      // from index number in download sequences to index number in the file chunks
+      rx.map(chunk => {
+        return {
+          decoded: chunk.decoded,
+          index: chunkIndexes[chunk.index],
+        };
+      })
     );
   }
 }
@@ -282,10 +251,6 @@ export class UploadFile {
       "chunks"
     );
 
-    // step 2. create/upload index file(s)
-    const indexFile = new IndexFile();
-    const indexFileHead = await indexFile.GenIndexFile(filePtrs, this.dataUploadConfig);
-
     // step 2. create/upload bootloader file
     const bootloaderFile = new BootloaderFile()
     const descStr = await bootloaderFile.GenDescription(
@@ -295,7 +260,7 @@ export class UploadFile {
       this.aesKey,
       this.aesIv,
       this.checksum.digest(),
-      indexFileHead,
+      filePtrs,
       this.blUploadConfig,
       this.blPassword,
     );

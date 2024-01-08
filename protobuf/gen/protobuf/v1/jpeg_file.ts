@@ -38,18 +38,9 @@ export interface PbFilePointer {
   resources: PbResourceURL[];
 }
 
-/** could be a linked list */
-export interface PbIndexFile {
-  $type: "protobuf.v1.PbIndexFile";
-  ended: boolean;
-  chunks: PbFilePointer[];
-  /** next segment of the index file */
-  next: PbFilePointer | undefined;
-}
-
 export interface PbBootloaderFile {
   $type: "protobuf.v1.PbBootloaderFile";
-  indexFileHead: PbFilePointer | undefined;
+  chunks: PbFilePointer[];
   fileSize: number;
   chunkSize: number;
   fileName: string;
@@ -358,88 +349,10 @@ export const PbFilePointer = {
 
 messageTypeRegistry.set(PbFilePointer.$type, PbFilePointer);
 
-function createBasePbIndexFile(): PbIndexFile {
-  return { $type: "protobuf.v1.PbIndexFile", ended: false, chunks: [], next: undefined };
-}
-
-export const PbIndexFile = {
-  $type: "protobuf.v1.PbIndexFile" as const,
-
-  encode(message: PbIndexFile, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.ended === true) {
-      writer.uint32(8).bool(message.ended);
-    }
-    for (const v of message.chunks) {
-      PbFilePointer.encode(v!, writer.uint32(18).fork()).ldelim();
-    }
-    if (message.next !== undefined) {
-      PbFilePointer.encode(message.next, writer.uint32(26).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): PbIndexFile {
-    const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBasePbIndexFile();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          message.ended = reader.bool();
-          break;
-        case 2:
-          message.chunks.push(PbFilePointer.decode(reader, reader.uint32()));
-          break;
-        case 3:
-          message.next = PbFilePointer.decode(reader, reader.uint32());
-          break;
-        default:
-          reader.skipType(tag & 7);
-          break;
-      }
-    }
-    return message;
-  },
-
-  fromJSON(object: any): PbIndexFile {
-    return {
-      $type: PbIndexFile.$type,
-      ended: isSet(object.ended) ? Boolean(object.ended) : false,
-      chunks: Array.isArray(object?.chunks) ? object.chunks.map((e: any) => PbFilePointer.fromJSON(e)) : [],
-      next: isSet(object.next) ? PbFilePointer.fromJSON(object.next) : undefined,
-    };
-  },
-
-  toJSON(message: PbIndexFile): unknown {
-    const obj: any = {};
-    message.ended !== undefined && (obj.ended = message.ended);
-    if (message.chunks) {
-      obj.chunks = message.chunks.map((e) => e ? PbFilePointer.toJSON(e) : undefined);
-    } else {
-      obj.chunks = [];
-    }
-    message.next !== undefined && (obj.next = message.next ? PbFilePointer.toJSON(message.next) : undefined);
-    return obj;
-  },
-
-  fromPartial<I extends Exact<DeepPartial<PbIndexFile>, I>>(object: I): PbIndexFile {
-    const message = createBasePbIndexFile();
-    message.ended = object.ended ?? false;
-    message.chunks = object.chunks?.map((e) => PbFilePointer.fromPartial(e)) || [];
-    message.next = (object.next !== undefined && object.next !== null)
-      ? PbFilePointer.fromPartial(object.next)
-      : undefined;
-    return message;
-  },
-};
-
-messageTypeRegistry.set(PbIndexFile.$type, PbIndexFile);
-
 function createBasePbBootloaderFile(): PbBootloaderFile {
   return {
     $type: "protobuf.v1.PbBootloaderFile",
-    indexFileHead: undefined,
+    chunks: [],
     fileSize: 0,
     chunkSize: 0,
     fileName: "",
@@ -453,8 +366,8 @@ export const PbBootloaderFile = {
   $type: "protobuf.v1.PbBootloaderFile" as const,
 
   encode(message: PbBootloaderFile, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.indexFileHead !== undefined) {
-      PbFilePointer.encode(message.indexFileHead, writer.uint32(10).fork()).ldelim();
+    for (const v of message.chunks) {
+      PbFilePointer.encode(v!, writer.uint32(10).fork()).ldelim();
     }
     if (message.fileSize !== 0) {
       writer.uint32(16).uint32(message.fileSize);
@@ -485,7 +398,7 @@ export const PbBootloaderFile = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          message.indexFileHead = PbFilePointer.decode(reader, reader.uint32());
+          message.chunks.push(PbFilePointer.decode(reader, reader.uint32()));
           break;
         case 2:
           message.fileSize = reader.uint32();
@@ -516,7 +429,7 @@ export const PbBootloaderFile = {
   fromJSON(object: any): PbBootloaderFile {
     return {
       $type: PbBootloaderFile.$type,
-      indexFileHead: isSet(object.indexFileHead) ? PbFilePointer.fromJSON(object.indexFileHead) : undefined,
+      chunks: Array.isArray(object?.chunks) ? object.chunks.map((e: any) => PbFilePointer.fromJSON(e)) : [],
       fileSize: isSet(object.fileSize) ? Number(object.fileSize) : 0,
       chunkSize: isSet(object.chunkSize) ? Number(object.chunkSize) : 0,
       fileName: isSet(object.fileName) ? String(object.fileName) : "",
@@ -528,8 +441,11 @@ export const PbBootloaderFile = {
 
   toJSON(message: PbBootloaderFile): unknown {
     const obj: any = {};
-    message.indexFileHead !== undefined &&
-      (obj.indexFileHead = message.indexFileHead ? PbFilePointer.toJSON(message.indexFileHead) : undefined);
+    if (message.chunks) {
+      obj.chunks = message.chunks.map((e) => e ? PbFilePointer.toJSON(e) : undefined);
+    } else {
+      obj.chunks = [];
+    }
     message.fileSize !== undefined && (obj.fileSize = Math.round(message.fileSize));
     message.chunkSize !== undefined && (obj.chunkSize = Math.round(message.chunkSize));
     message.fileName !== undefined && (obj.fileName = message.fileName);
@@ -544,9 +460,7 @@ export const PbBootloaderFile = {
 
   fromPartial<I extends Exact<DeepPartial<PbBootloaderFile>, I>>(object: I): PbBootloaderFile {
     const message = createBasePbBootloaderFile();
-    message.indexFileHead = (object.indexFileHead !== undefined && object.indexFileHead !== null)
-      ? PbFilePointer.fromPartial(object.indexFileHead)
-      : undefined;
+    message.chunks = object.chunks?.map((e) => PbFilePointer.fromPartial(e)) || [];
     message.fileSize = object.fileSize ?? 0;
     message.chunkSize = object.chunkSize ?? 0;
     message.fileName = object.fileName ?? "";

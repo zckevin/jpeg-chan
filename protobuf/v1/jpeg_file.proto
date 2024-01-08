@@ -31,16 +31,9 @@ message PbFilePointer {
     repeated PbResourceURL resources = 4;
 }
 
-// could be a linked list
-message PbIndexFile {
-    required bool ended = 1;
-    repeated PbFilePointer chunks = 2;
-    // next segment of the index file
-    optional PbFilePointer next = 3;
-}
-
 message PbBootloaderFile {
-    required PbFilePointer index_file_head = 1;
+    repeated PbFilePointer chunks = 1;
+
     required uint32 file_size = 2;
     required uint32 chunk_size = 3;
     required string file_name = 4;
