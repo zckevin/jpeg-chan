@@ -1,10 +1,10 @@
 {
   "name": "jpeg-chan",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "license": "GPLV3",
   "type": "commonjs",
   "files": [
-    "packages/**/dist/*"
+    "packages/jpeg-file/dist/*"
   ],
   "bin": {
     "jpeg-chan": "./bin/cmd.js"

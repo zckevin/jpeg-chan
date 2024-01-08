@@ -1,7 +1,7 @@
 # jpeg-chan
 [![Tests](https://github.com/zckevin/weibo-jpeg-channel/actions/workflows/testing.yml/badge.svg)](https://github.com/zckevin/weibo-jpeg-channel/actions/workflows/testing.yml)
 
-将任意数据分块并加密后储存于 jpeg 图像的空间域中, 并上传至各大社交平台.
+将任意数据分块并加密后储存于 jpeg 图像的空间域中, 上传至各大社交平台, 最后生成一个类似于 Magnet 的短链接.
 
 ## 原理
 
@@ -23,15 +23,15 @@ node bin/cmd.js test -s bili -b 1-5 128k 128k
 
 bootloader:
 
-![bootloader](/docs/128KiB_bootloader.jpg)
+![bootloader](https://raw.githubusercontent.com/zckevin/jpeg-chan/master/docs/128KiB_bootloader.jpg)
 
 payload:
 
-![payload](/docs/128KiB.jpg)
+![payload](https://raw.githubusercontent.com/zckevin/jpeg-chan/master/docs/128KiB.jpg)
 
 同时支持使用另一个图片作为 mask, 例如使用如下文件作为 mask, 上传 128KiB 数据至 Bilibili, used bits 为 [2-5]:
 
-![mask](/image_templates/mask_400px.jpg)
+![mask](https://raw.githubusercontent.com/zckevin/jpeg-chan/master/image_templates/mask_400px.jpg)
 
 ```
 node bin/cmd.js test -s bili -b 2-5 128k 128k
@@ -39,7 +39,7 @@ node bin/cmd.js test -s bili -b 2-5 128k 128k
 
 payload:
 
-![payload](/docs/128KiB_masked_2_5.jpg)
+![payload](https://raw.githubusercontent.com/zckevin/jpeg-chan/master/docs/128KiB_masked_2_5.jpg)
 
 修改 used bits 为: [4-5], 可以看到使用空间域的低位将减少图片的噪点(尽管对于深度学习识别系统而言没什么实际作用):
 
@@ -49,7 +49,7 @@ node bin/cmd.js test -s bili -b 4-5 128k 128k
 
 payload:
 
-![payload](/docs/128KiB_masked_4_5.jpg)
+![payload](https://raw.githubusercontent.com/zckevin/jpeg-chan/master/docs/128KiB_masked_4_5.jpg)
 
 
 ## 文件格式
@@ -79,7 +79,24 @@ Chunks pointers 和目标存储文件的其它 meta data 储存在 `BootloadFile
 
 password 存储在 URL 的 query 中, 用户在公开分享该 url 时可以将其隐藏并通过其它信道分享 password.
 
+## Supported platforms
+
+- Bilibili(tested)
+- Weibo(untested)
+
 ## Usage
+
+```
+npm i --location=global jpeg-chan
+
+jpeg-chan -h
+
+# 在当前目录创建 .env 文件或者使用环境变量
+#
+# for bilibili
+#   BILIBILI_SESSION=cookie.SESSDATA
+#   BILIBILI_CSRF=cookie.bili_jct
+```
 
 具体参数参考 `bin/cmd.js`
 

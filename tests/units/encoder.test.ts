@@ -44,8 +44,7 @@ test("encoder should work with different payload sizes", async () => {
   }));
 }, 60_000);
 
-// TODO: Temporarily disabled because it fails on Mac os x.
-test.skip("photo mask demands usedBits's from to be greater than 1", async () => {
+test("photo mask demands usedBits's from to be greater than 1", async () => {
   await expect(async () => {
     await EncDecLoop(EncoderType.wasmEncoder, DecoderType.wasmDecoder, new UsedBits(1, 4), 1024, (enc) => {
       enc.setMaskPhotoFilePath(MASK_PHOTO_FILE_PATH);

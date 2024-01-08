@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const pjson = require('../package.json');
 const { Command } = require('commander');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -35,7 +36,7 @@ function parseSinkType(sinkType) {
   throw new Error(`Unknown sink type: ${options.sinkType}`)
 }
 
-const program = new Command();
+const program = new Command().version(pjson.version);
 
 program
   .command('test')

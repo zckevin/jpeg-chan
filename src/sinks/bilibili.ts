@@ -19,7 +19,9 @@ const log = debug('jpeg:http:bilibili');
 dotenv.config();
 
 async function upload(ab: ArrayBuffer): Promise<string> {
+  // cookie key: SESSDATA
   const SESSDATA = process.env.BILIBILI_SESSION;
+  // cookie key: bili_jct
   const csrf = process.env.BILIBILI_CSRF;
   if (!SESSDATA) {
     throw new Error("No BILIBILI_SESSION found in .env");
