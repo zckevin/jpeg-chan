@@ -100,6 +100,7 @@ node bin/cmd.js download \
 
 ## Todos
 
+- 支持更多的平台, 暂时只测试了 Bilibili
 - 支持多平台冗余上传
 - 通过兼容 BitTorrent 支持 FUSEfs
 

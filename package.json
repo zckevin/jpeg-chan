@@ -1,13 +1,14 @@
 {
-  "name": "weibo-jpeg-channel",
-  "version": "0.0.2",
-  "author": "Cong Zuo",
-  "license": "MIT",
+  "name": "jpeg-chan",
+  "version": "0.0.5",
+  "license": "GPLV3",
   "type": "commonjs",
-  "main": "dist/jpeg-decoder.js",
   "files": [
-    "dist"
+    "packages/**/dist/*"
   ],
+  "bin": {
+    "jpeg-chan": "./bin/cmd.js"
+  },
   "dependencies": {
     "@jimp/plugin-resize": "^0.16.2",
     "@saschazar/wasm-image-loader": "^4.0.0",

@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const { Command } = require('commander');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
