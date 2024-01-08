@@ -67,6 +67,7 @@ class SinkDelegate {
         hash.update(buf);
         return {
           sink: sink,
+          original: buf,
           encoded: encoded,
           index: index,
           originalLength: buf.byteLength,
@@ -76,6 +77,9 @@ class SinkDelegate {
       }),
       task.createLimitedTasklet(async (params) => {
         const urlString = await params.sink.DoUpload(params.encoded, config);
+        if (config.validate) {
+          await params.sink.validate(params.original, urlString, usedConfig.toDownloadConfig());
+        }
         if (config.sleepInterval > 0) {
           await sleep(config.sleepInterval);
         }

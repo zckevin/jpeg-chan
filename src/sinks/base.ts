@@ -28,12 +28,6 @@ export class BasicSink {
       config.maskPhotoFilePath,
     );
     const url = await this.DoUpload(encoded as ArrayBuffer, config);
-    if (config.validate) {
-      const err = await this.validate(original, url, config.toDownloadConfig());
-      if (err) {
-        throw err;
-      }
-    }
     return url;
   }
 
@@ -65,12 +59,9 @@ export class BasicSink {
     const decoded = await this.DownloadDecodeDecrypt(url, original.byteLength, config);
     for (let i = 0; i < original.byteLength; i++) {
       if (original[i] !== decoded[i]) {
-        console.log("mismatch", original, url, decoded)
-        return new Error(`Mismatch at index ${i}: ${original[i]} : ${decoded[i]}`);
+        throw new Error(`Mismatch at index ${i}: ${original[i]} : ${decoded[i]}`);
       }
     }
-    console.log(`Validate ${url} successfully.`)
-    return null;
   }
 
   match(url: string) {

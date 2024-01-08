@@ -35,15 +35,15 @@ function parseSinkType(sinkType) {
 
 const program = new Command();
 
-/*
 program
   .command('test')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
   .option('-c, --concurrency <concurrency>', 'concurrency', "1")
+  .option('-i, --interval <sleep_interval>', 'interval', "200")
   .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
-  .option('-u, --usedBits <usedBist>', 'usedBist', String)
+  .option('-b, --usedBits <usedBits>', 'usedBits', String)
   .option('--no-validate', 'do not do validation')
   .action(async (size, chunkSize, options) => {
     const sinkType = parseSinkType(options.sinkType);
@@ -54,15 +54,15 @@ program
       filePath,
       parseChunkSize(chunkSize),
       parseInt(options.concurrency),
-      options.validate !== false,
+      options.validate,
       memfs,
       sinkType,
       options.maskPhotoFilePath,
       options.usedBits,
+      parseInt(options.interval),
     );
     console.log(await f.GenerateDescription());
   });
-*/
 
 program
   .command('upload')
@@ -72,18 +72,18 @@ program
   .option('-c, --concurrency <concurrency>', 'concurrency', "1")
   .option('-i, --interval <sleep_interval>', 'interval', "200")
   .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
-  .option('--no-validate', 'do not do validation')
+  .option('-b, --usedBits <usedBits>', 'usedBits', "")
   .action(async (filePath, chunkSize, options) => {
     const sinkType = parseSinkType(options.sinkType);
     const f = new UploadFile(
       filePath,
       parseChunkSize(chunkSize),
       parseInt(options.concurrency),
-      options.validate !== false,
+      false,
       fs,
       sinkType,
       options.maskPhotoFilePath,
-      "",
+      options.usedBits,
       parseInt(options.interval),
     );
     console.log(await f.GenerateDescription(true));

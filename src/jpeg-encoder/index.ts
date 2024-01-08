@@ -75,7 +75,7 @@ export class JpegEncoder extends JpegChannel {
       // to output image's most significant bits.
       if (nextPhotoMaskByteFn) {
         assert(this.usedBits.from >= 2,
-          "When using photo mask, usedBits' from bit index should be greater than 1.")
+          "When using photo mask, usedBits's from bit index should be greater than 1.")
         const photoMask = nextPhotoMaskByteFn(width);
         const usedMask = keepMostSignificantNBits(photoMask, this.usedBits.from - 1);
         nextByte |= usedMask;
