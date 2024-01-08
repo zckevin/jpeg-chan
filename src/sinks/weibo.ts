@@ -67,7 +67,7 @@ export class WeiboSink extends BasicSink {
     super(
       200,
       new UsedBits(1, 2),
-      /https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-zA-Z]+)\.jpe?g/,
+      [/https?:\/\/wx\d\.sinaimg\.cn\/original\/([0-9a-zA-Z]+)\.jpe?g/],
       SinkType.weibo,
     );
   }

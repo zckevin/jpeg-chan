@@ -43,12 +43,12 @@ export function EncodeResourceID(rid: PbResourceURL_ID) {
   return Buffer.from(id).toString(isHex ? "hex" : "ascii")
 }
 
-export function CreateShortResourceID(idString: string, sinkType: SinkType) {
+export function CreateShortResourceID(idString: string, sinkType: SinkType, sinkTypeMinor: number) {
   const shortUrl: PbResourceURL_ShortURL = {
     $type: PbResourceURL_ShortURL.$type,
     id: DecodeResourceID(idString),
-    sinkType: sinkType,
-    sinkTypeMinor: 0,
+    sinkType,
+    sinkTypeMinor,
   };
   const shortResource: PbResourceURL = {
     $type: PbResourceURL.$type,
@@ -67,8 +67,8 @@ export function GenDescString(fp: PbFilePointer, password: Uint8Array) {
   switch (fp.resources[0].urlOneof.$case) {
     case "url": {
       const urlString = fp.resources[0].urlOneof.url;
-      const { sinkType, id } = sinkDelegate.GetTypeAndID(urlString);
-      resource = CreateShortResourceID(id, sinkType);
+      const { sink, id } = sinkDelegate.GetSinkAndID(urlString);
+      resource = CreateShortResourceID(id, sink.type, sink.MinorVersion());
       break;
     }
     case "shortUrl": {

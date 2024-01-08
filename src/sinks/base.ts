@@ -14,7 +14,7 @@ export class BasicSink {
   constructor(
     public MIN_UPLOAD_BUFFER_SIZE: number,
     public DEFAULT_USED_BITS: UsedBits,
-    public regex: RegExp,
+    public regexes: RegExp[],
     public type: SinkType,
   ) { }
 
@@ -74,17 +74,25 @@ export class BasicSink {
   }
 
   match(url: string) {
-    assert(this.regex);
-    return this.regex.test(url);
+    assert(this.regexes.length > 0);
+    for (let i = 0; i < this.regexes.length; i++) {
+      if (this.regexes[i].test(url)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   getImageIDFromUrl(url: string) {
-    assert(this.regex);
-    const results = this.regex.exec(url);
-    if (results!.length < 2) {
-      throw new Error(`ID not found in url: ${url}`);
+    assert(this.regexes.length > 0);
+    for (let i = 0; i < this.regexes.length; i++) {
+      const results = this.regexes[i].exec(url);
+      if (results!.length < 2) {
+        continue;
+      }
+      return results![1];
     }
-    return results![1];
+    throw new Error(`ID not found in url: ${url}`);
   }
 
   public async DoUpload(ab: ArrayBuffer, config: SinkUploadConfig): Promise<string> {
@@ -95,7 +103,12 @@ export class BasicSink {
     throw new Error("Not implemented");
   }
 
-  public ExpandIDToUrl(id: string): string {
+  public ExpandIDToUrl(id: string, sinkTypeMinor: number): string {
     throw new Error("Not implemented");
+  }
+
+  public MinorVersion(): number {
+    // throw new Error("Not implemented");
+    return 0;
   }
 }

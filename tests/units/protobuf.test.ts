@@ -9,7 +9,7 @@ const fp: PbFilePointer = {
   size: 1024,
   usedBits: "1-2",
   checksum: Buffer.from("123"),
-  resources: [CreateShortResourceID(idString, SinkType.bilibili)],
+  resources: [CreateShortResourceID(idString, SinkType.bilibili, 1)],
 }
 
 test("GenDescString desc", () => {

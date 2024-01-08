@@ -14,7 +14,7 @@ export class MemFileSink extends BasicSink {
     super(
       0,
       new UsedBits(1, 4),
-      /^memfile:\/\/(.*)\.jpg$/,
+      [/^memfile:\/\/(.*)\.jpg$/],
       SinkType.memfile
     );
   }

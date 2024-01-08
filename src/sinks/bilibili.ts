@@ -20,8 +20,12 @@ dotenv.config();
 
 async function upload(ab: ArrayBuffer): Promise<string> {
   const SESSDATA = process.env.BILIBILI_SESSION;
+  const csrf = process.env.BILIBILI_CSRF;
   if (!SESSDATA) {
     throw new Error("No BILIBILI_SESSION found in .env");
+  }
+  if (!csrf) {
+    throw new Error("No BILIBILI_CSRF found in .env");
   }
   const form = new FormData();
   form.append('file_up', Buffer.from(ab), {
@@ -29,7 +33,8 @@ async function upload(ab: ArrayBuffer): Promise<string> {
     contentType: "image/jpeg"
   });
   form.append('category', 'daily');
-  form.append('biz', 'draw');
+  form.append('biz', 'new_dyn');
+  form.append('csrf', csrf);
 
   const headers = form.getHeaders();
   headers.Cookie = `SESSDATA=${SESSDATA}`;
@@ -37,8 +42,8 @@ async function upload(ab: ArrayBuffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const req = https.request({
       method: 'post',
-      host: 'api.vc.bilibili.com',
-      path: '/api/v1/drawImage/upload',
+      host: 'api.bilibili.com',
+      path: '/x/dynamic/feed/draw/upload_bfs',
       headers: headers,
     }, function (res) {
       let str = '';
@@ -70,8 +75,8 @@ export class BilibiliSink extends BasicSink {
     super(
       200,
       new UsedBits(1, 5),
-      /https?:\/\/i\d\.hdslb\.com\/bfs\/album\/([0-9a-z]+)\.jpe?g/,
-      SinkType.bilibili
+      [/https?:\/\/i\d\.hdslb\.com\/bfs\/[^/]+\/([0-9a-z]+)\.jpe?g/],
+      SinkType.bilibili,
     );
     this.supportsHTTP2 = false;
   }
@@ -88,12 +93,23 @@ export class BilibiliSink extends BasicSink {
 
   async DoNodeDownload(url: string, config: SinkDownloadConfig) {
     const randomCDNUrl = url.replace(
-      "i0", `i${sample(range(0, 4))}`
+      "i0", `i${sample(range(0, 2))}`
     );
     return NodeFetch(randomCDNUrl, config.signal);
   }
 
-  ExpandIDToUrl(id: string) {
-    return `https://i0.hdslb.com/bfs/album/${id}.jpg`;
+  ExpandIDToUrl(id: string, sinkTypeMinor: number) {
+    switch(sinkTypeMinor) {
+      case 1: {
+        return `https://i0.hdslb.com/bfs/new_dyn/${id}.jpg`;
+      }
+      default: {
+        throw new Error(`unknown minor version: ${sinkTypeMinor}`)
+      }
+    }
+  }
+
+  public MinorVersion(): number {
+    return 1;
   }
 }

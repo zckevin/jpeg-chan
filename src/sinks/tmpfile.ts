@@ -15,7 +15,7 @@ export class TmpFileSink extends BasicSink {
     super(
       0,
       new UsedBits(1, 4),
-      /^tmpfile:\/\/(.*)\.jpg$/,
+      [/^tmpfile:\/\/(.*)\.jpg$/],
       SinkType.tmpfile
     );
     fsExtra.ensureDirSync(this.rootDir);

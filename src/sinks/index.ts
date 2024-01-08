@@ -144,16 +144,16 @@ class SinkDelegate {
     );
   }
 
-  GetTypeAndID(url: string) {
+  GetSinkAndID(url: string) {
     const sink = this.getSink(url);
     return {
-      sinkType: sink.type,
+      sink,
       id: sink.getImageIDFromUrl(url),
     }
   }
 
-  ExpandIDToUrl(type: number, id: string) {
-    return this.getSink(type).ExpandIDToUrl(id);
+  private expandIDToUrl(type: number, sinkTypeMinor: number, id: string) {
+    return this.getSink(type).ExpandIDToUrl(id, sinkTypeMinor);
   }
 
   ResourceURLToString(id: PbResourceURL): string {
@@ -163,7 +163,7 @@ class SinkDelegate {
       }
       case "shortUrl": {
         const shortUrl = id.urlOneof.shortUrl;
-        return this.ExpandIDToUrl(shortUrl.sinkType, EncodeResourceID(shortUrl.id));
+        return this.expandIDToUrl(shortUrl.sinkType, shortUrl.sinkTypeMinor, EncodeResourceID(shortUrl.id));
       }
     }
   }
