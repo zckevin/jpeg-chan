@@ -50,6 +50,7 @@ export class SinkUploadConfig extends ConfigBase {
     public encoderType: EncoderType,
     public sinkType: SinkType,
     signal: AbortSignal,
+    public sleepInterval: number,
   ) {
     super(usedBits, cipherConfig, concurrency, signal);
   }
@@ -64,6 +65,7 @@ export class SinkUploadConfig extends ConfigBase {
       this.encoderType,
       this.sinkType,
       this.signal,
+      this.sleepInterval,
     );
   }
 

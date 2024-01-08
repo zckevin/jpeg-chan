@@ -8,7 +8,7 @@ import { EncoderType, DecoderType } from "../../src/common-types";
 const usedBits = new UsedBits(1, 4);
 const cipherConfig = NewCipherConfigFromPassword(new Uint8Array(randomBytesArray(32)));
 const downloadConfig = new SinkDownloadConfig(usedBits, cipherConfig, 4, DecoderType.wasmDecoder, null);
-const uploadConfig = new SinkUploadConfig(usedBits, cipherConfig, 4, false, "", EncoderType.wasmEncoder, null, null);
+const uploadConfig = new SinkUploadConfig(usedBits, cipherConfig, 4, false, "", EncoderType.wasmEncoder, null, null, 0);
 
 async function doEncryptEncode(ab: ArrayBuffer) {
   const pool = new WorkerPool();

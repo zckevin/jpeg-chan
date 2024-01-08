@@ -17,6 +17,10 @@ import crypto from 'crypto';
 
 const log = debug('jpeg:sinks');
 
+async function sleep(t: number) {
+  return new Promise(resolve => setTimeout(resolve, t));
+}
+
 class SinkDelegate {
   private sinks = [
     new WeiboSink(),
@@ -46,10 +50,10 @@ class SinkDelegate {
     return sink;
   }
 
-  async UploadMultiple(getBuf: (index: number) => Buffer, totalLength: number, config: SinkUploadConfig) {
+  async UploadMultiple(getBuf: (index: number) => Buffer, totalLength: number, config: SinkUploadConfig, uploadMsg: string) {
     const { task, source$, pool, abortCtr } = RxTask.Create(totalLength, config.concurrency);
     const usedConfig = config.cloneWithSignal(abortCtr.signal);
-    log("upload multiple with config", usedConfig);
+    log(`upload [${uploadMsg}] with config`, usedConfig);
 
     const ob = source$.pipe(
       task.createUnlimitedTasklet(async (index: number) => {
@@ -72,6 +76,9 @@ class SinkDelegate {
       }),
       task.createLimitedTasklet(async (params) => {
         const urlString = await params.sink.DoUpload(params.encoded, config);
+        if (config.sleepInterval > 0) {
+          await sleep(config.sleepInterval);
+        }
         const resourceID: PbResourceURL = {
           $type: PbResourceURL.$type,
           urlOneof: {
@@ -102,7 +109,7 @@ class SinkDelegate {
     };
   }
 
-  async DownloadSingleFile(chunk: PbFilePointer, config: SinkDownloadConfig) {
+  async DownloadSingle(chunk: PbFilePointer, config: SinkDownloadConfig) {
     const cached = await firstValueFrom(this.DownloadMultiple([chunk], config));
     return cached.decoded;
   }

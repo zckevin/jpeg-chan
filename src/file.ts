@@ -23,19 +23,19 @@ const debugLogger = debug('jpeg:file');
 class BaseFile {
   constructor() { }
 
-  async uploadBuffer(buf: Buffer, uploadConfig: SinkUploadConfig) {
-    const { filePtrs } = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig);
+  async uploadBuffer(buf: Buffer, uploadConfig: SinkUploadConfig, uploadMsg: string) {
+    const { filePtrs } = await sinkDelegate.UploadMultiple(() => buf, 1, uploadConfig, uploadMsg);
     assert(filePtrs.length === 1);
     return filePtrs[0];
   }
 
-  async upload<T extends UnknownMessage>(msg: T, uploadConfig: SinkUploadConfig) {
+  async upload<T extends UnknownMessage>(msg: T, uploadConfig: SinkUploadConfig, uploadMsg: string) {
     const buf = Buffer.from(messageTypeRegistry.get(msg.$type)!.encode(msg).finish());
-    return this.uploadBuffer(buf, uploadConfig);
+    return this.uploadBuffer(buf, uploadConfig, uploadMsg);
   }
 
   async download<T extends UnknownMessage>(msgTyp: MessageType, ptr: PbFilePointer, downloadConfig: SinkDownloadConfig) {
-    const buf = await sinkDelegate.DownloadSingleFile(ptr, downloadConfig);
+    const buf = await sinkDelegate.DownloadSingle(ptr, downloadConfig);
     return msgTyp.decode(buf) as T;
   }
 }
@@ -70,7 +70,7 @@ class IndexFile extends BaseFile {
       next: undefined,
     }
     this.log("Gen from:", indexFile);
-    const indexFilePtr = await this.upload(indexFile, uploadConfig);
+    const indexFilePtr = await this.upload(indexFile, uploadConfig, "indexFile");
     this.log("Gen result: ", indexFilePtr);
     return indexFilePtr;
   }
@@ -153,7 +153,7 @@ class BootloaderFile extends BaseFile {
       checksum,
     };
     this.log("Gen from: ", blFile);
-    const bootloaderFilePtr = await this.upload(blFile, uploadConfig);
+    const bootloaderFilePtr = await this.upload(blFile, uploadConfig, "bootloaderFile");
     return GenDescString(bootloaderFilePtr, blPassword);
   }
 
@@ -212,6 +212,7 @@ export class UploadFile {
     public sinkType: SinkType = SinkType.unknown,
     maskPhotoFilePath: string = "",
     usedBitsString: string = "",
+    sleepInterval: number = 0,
   ) {
     assert(chunkSize > 0);
 
@@ -238,6 +239,7 @@ export class UploadFile {
       EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
+      0,
     );
     this.dataUploadConfig = new SinkUploadConfig(
       usedBits, // usedBits
@@ -248,6 +250,7 @@ export class UploadFile {
       EncoderType.jpegjsEncoder,
       sinkType, // sinkType
       null,
+      sleepInterval,
     );
     this.log(
       "Upload start with filePath/chunkSize/concurrency/validate/sinkType/maskPhoto:",
@@ -275,7 +278,8 @@ export class UploadFile {
     const { filePtrs, totalUploadSize } = await sinkDelegate.UploadMultiple(
       readChunk,
       this.n_chunks,
-      this.dataUploadConfig
+      this.dataUploadConfig,
+      "chunks"
     );
 
     // step 2. create/upload index file(s)

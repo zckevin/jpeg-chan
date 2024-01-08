@@ -30,17 +30,18 @@ function parseSinkType(sinkType) {
       return SinkType.memfile;
     }
   }
-  throw new Error(`Unkown sink type: ${options.sinkType}`)
+  throw new Error(`Unknown sink type: ${options.sinkType}`)
 }
 
 const program = new Command();
 
+/*
 program
   .command('test')
   .argument('<size>', 'test upload buffer size, e.g. 1024 / 42K / 2M', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
-  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('-c, --concurrency <concurrency>', 'concurrency', "1")
   .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
   .option('-u, --usedBits <usedBist>', 'usedBist', String)
   .option('--no-validate', 'do not do validation')
@@ -61,13 +62,15 @@ program
     );
     console.log(await f.GenerateDescription());
   });
+*/
 
 program
   .command('upload')
   .argument('<filePath>', 'upload file', String)
   .argument('<chunkSize>', 'chunk size, e.g. 1024 / 42K / 2M', String)
   .option('-s, --sinkType <sinkType>', 'use only this kind of sink', "bili")
-  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('-c, --concurrency <concurrency>', 'concurrency', "1")
+  .option('-i, --interval <sleep_interval>', 'interval', "200")
   .option('-m, --maskPhotoFilePath <maskPhotoFilePath>', 'maskPhotoFilePath', String)
   .option('--no-validate', 'do not do validation')
   .action(async (filePath, chunkSize, options) => {
@@ -80,14 +83,16 @@ program
       fs,
       sinkType,
       options.maskPhotoFilePath,
+      "",
+      parseInt(options.interval),
     );
-    console.log(await f.GenerateDescription());
+    console.log(await f.GenerateDescription(true));
   });
 
 program
   .command('download')
   .argument('<desc>', 'desc string', String)
-  .option('-c, --concurrency <concurrency>', 'upload concurrency', "10")
+  .option('-c, --concurrency <concurrency>', 'concurrency', "10")
   .action(async (desc, options) => {
     const f = await DownloadFile.Create(
       desc,
